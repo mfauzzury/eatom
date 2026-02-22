@@ -2,8 +2,7 @@
 definePageMeta({ title: 'Dashboard eATOM' })
 
 const { user, role, hasRole } = useAuthUser()
-
-const { data: stats } = await useFetch('/api/dashboard/stats')
+const { stats } = useMockData()
 
 const roleLabels: Record<string, string> = {
   ADMIN: 'Pentadbir Sistem', PS: 'Pegawai Semakan', KU: 'Ketua Unit',
@@ -26,12 +25,12 @@ const jenisLabel: Record<string, string> = {
 
 // Summary stat cards
 const summaryCards = computed(() => [
-  { label: 'Jumlah Permohonan', value: stats.value?.jumlahPermohonan ?? 0, icon: 'i-lucide-file-text', color: 'text-blue-600', bg: 'bg-blue-50' },
-  { label: 'Diluluskan', value: stats.value?.diluluskan ?? 0, icon: 'i-lucide-check-circle', color: 'text-green-600', bg: 'bg-green-50' },
-  { label: 'Dalam Proses', value: (stats.value?.dikemukakan ?? 0) + (stats.value?.semakan_PS ?? 0) + (stats.value?.lulus_PS ?? 0) + (stats.value?.semakan_KU ?? 0), icon: 'i-lucide-clock', color: 'text-amber-600', bg: 'bg-amber-50' },
-  { label: 'Ditolak', value: stats.value?.ditolak ?? 0, icon: 'i-lucide-x-circle', color: 'text-red-600', bg: 'bg-red-50' },
-  { label: 'Syarikat Berdaftar', value: stats.value?.jumlahSyarikat ?? 0, icon: 'i-lucide-building-2', color: 'text-indigo-600', bg: 'bg-indigo-50' },
-  { label: 'Pengguna Sistem', value: stats.value?.jumlahPengguna ?? 0, icon: 'i-lucide-users', color: 'text-purple-600', bg: 'bg-purple-50' }
+  { label: 'Jumlah Permohonan', value: stats.value.jumlahPermohonan, icon: 'i-lucide-file-text', color: 'text-blue-600', bg: 'bg-blue-50' },
+  { label: 'Diluluskan', value: stats.value.diluluskan, icon: 'i-lucide-check-circle', color: 'text-green-600', bg: 'bg-green-50' },
+  { label: 'Dalam Proses', value: (stats.value.dikemukakan) + (stats.value.semakan_PS) + (stats.value.lulus_PS) + (stats.value.semakan_KU), icon: 'i-lucide-clock', color: 'text-amber-600', bg: 'bg-amber-50' },
+  { label: 'Ditolak', value: stats.value.ditolak, icon: 'i-lucide-x-circle', color: 'text-red-600', bg: 'bg-red-50' },
+  { label: 'Syarikat Berdaftar', value: stats.value.jumlahSyarikat, icon: 'i-lucide-building-2', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+  { label: 'Pengguna Sistem', value: stats.value.jumlahPengguna, icon: 'i-lucide-users', color: 'text-purple-600', bg: 'bg-purple-50' }
 ])
 
 // --- ApexCharts options ---
@@ -47,7 +46,7 @@ const statusDonutOptions = computed(() => ({
   stroke: { width: 2 }
 }))
 const statusDonutSeries = computed(() => {
-  const map = stats.value?.statusMap ?? {}
+  const map = stats.value.statusMap
   return [
     map['draf'] ?? 0, map['dikemukakan'] ?? 0, map['semakan_PS'] ?? 0,
     map['lulus_PS'] ?? 0, map['semakan_KU'] ?? 0, map['diluluskan'] ?? 0, map['ditolak'] ?? 0
@@ -65,13 +64,13 @@ const jenisBarOptions = computed(() => ({
   tooltip: { enabled: false }
 }))
 const jenisBarSeries = computed(() => {
-  const map = stats.value?.jenisMap ?? {}
+  const map = stats.value.jenisMap
   return [{ name: 'Permohonan', data: [map['baru'] ?? 0, map['pinda'] ?? 0, map['perbaharui'] ?? 0] }]
 })
 
 // Bar: Kategori lesen
 const kategoriBarOptions = computed(() => {
-  const map = stats.value?.kategoriMap ?? {}
+  const map = stats.value.kategoriMap
   const labels = Object.keys(map)
   return {
     chart: { type: 'bar' as const, height: 280, toolbar: { show: false } },
@@ -84,7 +83,7 @@ const kategoriBarOptions = computed(() => {
   }
 })
 const kategoriBarSeries = computed(() => {
-  const map = stats.value?.kategoriMap ?? {}
+  const map = stats.value.kategoriMap
   return [{ name: 'Permohonan', data: Object.values(map) }]
 })
 
@@ -183,7 +182,7 @@ const moduleLinks = [
     </div>
 
     <!-- Tugasan Saya banner -->
-    <UCard v-if="stats?.tugasanSaya" class="border-l-4 border-l-amber-500">
+    <UCard v-if="stats.tugasanSaya" class="border-l-4 border-l-amber-500">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="p-2 rounded-lg bg-amber-50">
@@ -273,7 +272,7 @@ const moduleLinks = [
             </div>
           </template>
           <UTable
-            :data="stats?.recentPermohonan ?? []"
+            :data="stats.recentPermohonan"
             :columns="recentColumns"
           >
             <template #jenisPermohonan-cell="{ row }">

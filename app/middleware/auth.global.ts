@@ -1,19 +1,16 @@
-import { authClient } from '~/composables/useAuth'
+import { getMockUser } from '~/composables/useAuth'
 
 const PUBLIC_ROUTES = ['/login', '/daftar']
+const PUBLIC_PREFIXES = ['/portal']
 
-export default defineNuxtRouteMiddleware(async (to) => {
+export default defineNuxtRouteMiddleware((to) => {
   if (PUBLIC_ROUTES.includes(to.path)) return
+  if (PUBLIC_PREFIXES.some(prefix => to.path.startsWith(prefix))) return
 
-  if (import.meta.server) {
-    // SSR: forward browser cookies so the session can be verified server-side
-    const headers = useRequestHeaders(['cookie'])
-    const session = await $fetch('/api/auth/get-session', { headers }).catch(() => null)
-    if (!(session as { user?: unknown } | null)?.user) return navigateTo('/login')
-    return
-  }
+  // On server, skip auth check (mock mode — no cookies)
+  if (import.meta.server) return
 
-  // Client-side: browser sends cookies automatically
-  const { data: session } = await authClient.getSession()
-  if (!session?.user) return navigateTo('/login')
+  // Client-side: check localStorage
+  const user = getMockUser()
+  if (!user) return navigateTo('/login')
 })

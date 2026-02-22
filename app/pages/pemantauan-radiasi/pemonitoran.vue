@@ -1,11 +1,27 @@
 <script setup lang="ts">
 definePageMeta({ title: 'Pemonitoran & Persampelan' })
 
-const stats = ref([
-  { label: 'Stesen Pemonitoran', value: 24, icon: 'i-lucide-radio-tower', color: 'text-blue-600', bg: 'bg-blue-50' },
-  { label: 'Sampel Bulan Ini', value: 156, icon: 'i-lucide-test-tubes', color: 'text-green-600', bg: 'bg-green-50' },
-  { label: 'Bacaan Melebihi Had', value: 0, icon: 'i-lucide-alert-triangle', color: 'text-green-600', bg: 'bg-green-50' },
-  { label: 'Penyelenggaraan Perlu', value: 2, icon: 'i-lucide-wrench', color: 'text-amber-600', bg: 'bg-amber-50' }
+const data = ref([
+  { id: 1, stesen: 'STN-01', lokasi: 'Bangi, Selangor', bacaanTerkini: '0.08', tarikhBacaan: '22/02/2026 08:00', status: 'Normal' },
+  { id: 2, stesen: 'STN-02', lokasi: 'Dengkil, Selangor', bacaanTerkini: '0.07', tarikhBacaan: '22/02/2026 08:00', status: 'Normal' },
+  { id: 3, stesen: 'STN-03', lokasi: 'Gebeng, Pahang', bacaanTerkini: '0.12', tarikhBacaan: '22/02/2026 08:00', status: 'Normal' },
+  { id: 4, stesen: 'STN-04', lokasi: 'Ulu Kinta, Perak', bacaanTerkini: '0.09', tarikhBacaan: '22/02/2026 08:00', status: 'Normal' },
+  { id: 5, stesen: 'STN-05', lokasi: 'Senai, Johor', bacaanTerkini: '0.06', tarikhBacaan: '22/02/2026 07:00', status: 'Penyelenggaraan' },
+  { id: 6, stesen: 'STN-06', lokasi: 'Georgetown, Pulau Pinang', bacaanTerkini: '0.10', tarikhBacaan: '22/02/2026 08:00', status: 'Normal' }
+])
+
+const search = ref('')
+const filteredData = computed(() => {
+  if (!search.value) return data.value
+  const q = search.value.toLowerCase()
+  return data.value.filter(d => d.stesen.toLowerCase().includes(q) || d.lokasi.toLowerCase().includes(q))
+})
+
+const stats = computed(() => [
+  { label: 'Stesen Pemonitoran', value: data.value.length, icon: 'i-lucide-radio-tower', color: 'text-blue-600', bg: 'bg-blue-50' },
+  { label: 'Normal', value: data.value.filter(d => d.status === 'Normal').length, icon: 'i-lucide-check-circle', color: 'text-green-600', bg: 'bg-green-50' },
+  { label: 'Bacaan Melebihi Had', value: data.value.filter(d => d.status === 'Amaran').length, icon: 'i-lucide-alert-triangle', color: 'text-green-600', bg: 'bg-green-50' },
+  { label: 'Penyelenggaraan', value: data.value.filter(d => d.status === 'Penyelenggaraan').length, icon: 'i-lucide-wrench', color: 'text-amber-600', bg: 'bg-amber-50' }
 ])
 
 const columns = [
@@ -15,15 +31,6 @@ const columns = [
   { accessorKey: 'tarikhBacaan', header: 'Tarikh Bacaan' },
   { accessorKey: 'status', header: 'Status' }
 ]
-
-const data = ref([
-  { stesen: 'STN-01', lokasi: 'Bangi, Selangor', bacaanTerkini: '0.08', tarikhBacaan: '22/02/2026 08:00', status: 'Normal' },
-  { stesen: 'STN-02', lokasi: 'Dengkil, Selangor', bacaanTerkini: '0.07', tarikhBacaan: '22/02/2026 08:00', status: 'Normal' },
-  { stesen: 'STN-03', lokasi: 'Gebeng, Pahang', bacaanTerkini: '0.12', tarikhBacaan: '22/02/2026 08:00', status: 'Normal' },
-  { stesen: 'STN-04', lokasi: 'Ulu Kinta, Perak', bacaanTerkini: '0.09', tarikhBacaan: '22/02/2026 08:00', status: 'Normal' },
-  { stesen: 'STN-05', lokasi: 'Senai, Johor', bacaanTerkini: '0.06', tarikhBacaan: '22/02/2026 07:00', status: 'Penyelenggaraan' },
-  { stesen: 'STN-06', lokasi: 'Georgetown, Pulau Pinang', bacaanTerkini: '0.10', tarikhBacaan: '22/02/2026 08:00', status: 'Normal' }
-])
 
 const statusColour: Record<string, string> = { Normal: 'success', Penyelenggaraan: 'warning', Amaran: 'error' }
 
@@ -65,8 +72,13 @@ const trendSeries = ref([
       </ClientOnly>
     </UCard>
     <UCard :ui="{ body: 'p-0' }">
-      <template #header><p class="text-sm font-semibold text-gray-700">Stesen Pemonitoran</p></template>
-      <UTable :data="data" :columns="columns">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <p class="text-sm font-semibold text-gray-700">Stesen Pemonitoran</p>
+          <UInput v-model="search" icon="i-lucide-search" placeholder="Cari stesen..." class="w-56" />
+        </div>
+      </template>
+      <UTable :data="filteredData" :columns="columns">
         <template #status-cell="{ row }">
           <UBadge :color="statusColour[row.original.status] ?? 'neutral'" variant="soft" size="sm">{{ row.original.status }}</UBadge>
         </template>

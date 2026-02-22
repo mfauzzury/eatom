@@ -4,6 +4,7 @@ definePageMeta({ title: 'Permohonan Lesen Baharu' })
 const { hasRole } = useAuthUser()
 if (!hasRole('PL', 'ADMIN')) await navigateTo('/perlesenan/permohonan-lesen')
 
+const { addPermohonan } = useMockData()
 const totalSteps = 3
 const step = ref(1)
 const loading = ref(false)
@@ -84,23 +85,34 @@ const subKategoriLabel = computed(() =>
 
 async function submitForm(asDraft = false) {
   loading.value = true
-  try {
-    const result = await $fetch('/api/permohonan', {
-      method: 'POST',
-      body: { ...form, submit: !asDraft }
-    })
-    toast.add({
-      title: asDraft ? 'Draf Disimpan' : 'Permohonan Dikemukakan',
-      description: `No. Rujukan: ${(result as { noRujukan: string }).noRujukan}`,
-      color: 'success'
-    })
-    await navigateTo('/perlesenan/permohonan-lesen')
-  } catch (err: unknown) {
-    const e = err as { data?: { statusMessage?: string } }
-    toast.add({ title: 'Ralat', description: e.data?.statusMessage ?? 'Sila cuba semula.', color: 'error' })
-  } finally {
-    loading.value = false
-  }
+  await new Promise(r => setTimeout(r, 300))
+
+  const newP = addPermohonan({
+    namaSyarikat: form.namaSyarikat,
+    noDaftar: form.noDaftar,
+    alamat: form.alamat,
+    poskod: form.poskod,
+    negeri: form.negeri,
+    tel: form.tel,
+    emailSyarikat: form.email,
+    jenisPermohonan: form.jenisPermohonan,
+    noLesenSediaAda: form.noLesenSediaAda,
+    kategoriLesen: form.kategoriLesen,
+    subKategori: form.subKategori,
+    lokasi: form.lokasi,
+    aktiviti: form.aktiviti,
+    bilPeralatan: form.bilPeralatan ?? null,
+    keteranganPermohonan: form.keterangan,
+    status: asDraft ? 'draf' : 'dikemukakan'
+  })
+
+  toast.add({
+    title: asDraft ? 'Draf Disimpan' : 'Permohonan Dikemukakan',
+    description: `No. Rujukan: ${newP.noRujukan}`,
+    color: 'success'
+  })
+  loading.value = false
+  await navigateTo('/perlesenan/permohonan-lesen')
 }
 </script>
 

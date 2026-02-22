@@ -6,8 +6,8 @@ const subModules = [
   { label: 'Pendaftaran', icon: 'i-lucide-clipboard', to: '/perlesenan/pendaftaran' },
   { label: 'Kebenaran', icon: 'i-lucide-check-square', to: '/perlesenan/kebenaran' },
   { label: 'Peperiksaan & Pensijilan', icon: 'i-lucide-graduation-cap', to: '/perlesenan/peperiksaan' },
-  { label: 'Pengiktirafan', icon: 'i-lucide-award', to: '/perlesenan/pengiktirafan' },
-  { label: 'Kawalselia', icon: 'i-lucide-shield', to: '/perlesenan/kawalselia' }
+  { label: 'Kawalselia', icon: 'i-lucide-shield', to: '/perlesenan/kawalselia' },
+  { label: 'Kewangan', icon: 'i-lucide-banknote', to: '/perlesenan/kewangan' }
 ]
 </script>
 

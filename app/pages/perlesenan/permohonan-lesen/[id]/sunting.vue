@@ -3,6 +3,7 @@ definePageMeta({ title: 'Sunting Draf Permohonan' })
 
 const route = useRoute()
 const { hasRole } = useAuthUser()
+const { getPermohonan, updatePermohonan } = useMockData()
 const toast = useToast()
 const loading = ref(false)
 const step = ref(1)
@@ -10,29 +11,29 @@ const totalSteps = 3
 
 if (!hasRole('PL', 'ADMIN')) await navigateTo('/perlesenan/permohonan-lesen')
 
-const { data: permohonan } = await useFetch(`/api/permohonan/${route.params.id}`)
+const permohonan = getPermohonan(Number(route.params.id))
 
-if (!permohonan.value || permohonan.value.status !== 'draf') {
+if (!permohonan || permohonan.status !== 'draf') {
   toast.add({ title: 'Ralat', description: 'Hanya permohonan berstatus draf boleh disunting.', color: 'error' })
   await navigateTo(`/perlesenan/permohonan-lesen/${route.params.id}`)
 }
 
-const p = permohonan.value!
+const p = permohonan!
 const form = reactive({
   namaSyarikat: p.namaSyarikat ?? '',
   noDaftar: p.noDaftar ?? '',
   alamat: p.alamat ?? '',
-  poskod: (p as Record<string, unknown>).poskod as string ?? '',
+  poskod: p.poskod ?? '',
   negeri: p.negeri ?? '',
   tel: p.tel ?? '',
   email: p.emailSyarikat ?? '',
   jenisPermohonan: (p.jenisPermohonan ?? 'baru') as 'baru' | 'pinda' | 'perbaharui',
-  noLesenSediaAda: (p as Record<string, unknown>).noLesenSediaAda as string ?? '',
-  kategoriLesen: (p as Record<string, unknown>).kategoriLesen as string ?? '',
-  subKategori: (p as Record<string, unknown>).subKategori as string ?? '',
-  lokasi: (p as Record<string, unknown>).lokasi as string ?? '',
-  aktiviti: (p as Record<string, unknown>).aktiviti as string ?? '',
-  bilPeralatan: (p as Record<string, unknown>).bilPeralatan as number | undefined,
+  noLesenSediaAda: p.noLesenSediaAda ?? '',
+  kategoriLesen: p.kategoriLesen ?? '',
+  subKategori: p.subKategori ?? '',
+  lokasi: p.lokasi ?? '',
+  aktiviti: p.aktiviti ?? '',
+  bilPeralatan: p.bilPeralatan ?? undefined as number | undefined,
   keterangan: p.keteranganPermohonan ?? ''
 })
 
@@ -92,31 +93,34 @@ const subKategoriLabel = computed(() =>
 
 async function saveForm(andSubmit = false) {
   loading.value = true
-  try {
-    await $fetch(`/api/permohonan/${route.params.id}`, {
-      method: 'PATCH',
-      body: { ...form }
-    })
+  await new Promise(r => setTimeout(r, 300))
 
-    if (andSubmit) {
-      await $fetch(`/api/permohonan/${route.params.id}/status`, {
-        method: 'PATCH',
-        body: { status: 'dikemukakan' }
-      })
-    }
+  updatePermohonan(Number(route.params.id), {
+    namaSyarikat: form.namaSyarikat,
+    noDaftar: form.noDaftar,
+    alamat: form.alamat,
+    poskod: form.poskod,
+    negeri: form.negeri,
+    tel: form.tel,
+    emailSyarikat: form.email,
+    jenisPermohonan: form.jenisPermohonan,
+    noLesenSediaAda: form.noLesenSediaAda,
+    kategoriLesen: form.kategoriLesen,
+    subKategori: form.subKategori,
+    lokasi: form.lokasi,
+    aktiviti: form.aktiviti,
+    bilPeralatan: form.bilPeralatan ?? null,
+    keteranganPermohonan: form.keterangan,
+    ...(andSubmit ? { status: 'dikemukakan', submittedAt: new Date().toISOString().split('T')[0] } : {})
+  })
 
-    toast.add({
-      title: andSubmit ? 'Permohonan Dikemukakan' : 'Draf Dikemaskini',
-      description: andSubmit ? 'Permohonan telah dihantar untuk semakan.' : 'Perubahan telah disimpan.',
-      color: 'success'
-    })
-    await navigateTo(`/perlesenan/permohonan-lesen/${route.params.id}`)
-  } catch (err: unknown) {
-    const e = err as { data?: { statusMessage?: string } }
-    toast.add({ title: 'Ralat', description: e.data?.statusMessage ?? 'Sila cuba semula.', color: 'error' })
-  } finally {
-    loading.value = false
-  }
+  toast.add({
+    title: andSubmit ? 'Permohonan Dikemukakan' : 'Draf Dikemaskini',
+    description: andSubmit ? 'Permohonan telah dihantar untuk semakan.' : 'Perubahan telah disimpan.',
+    color: 'success'
+  })
+  loading.value = false
+  await navigateTo(`/perlesenan/permohonan-lesen/${route.params.id}`)
 }
 </script>
 

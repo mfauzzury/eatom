@@ -4,14 +4,15 @@ definePageMeta({ title: 'Detail Permohonan' })
 const route = useRoute()
 const { role, hasRole } = useAuthUser()
 const toast = useToast()
+const { getPermohonan, updatePermohonan } = useMockData()
 
-const { data: permohonan, refresh } = await useFetch(`/api/permohonan/${route.params.id}`)
+const permohonan = computed(() => getPermohonan(Number(route.params.id)))
 
-// --- Mock Data for Documents ---
-const dokumenList = ref([
-  { id: 1, namaFail: 'Sijil_SSM_2025.pdf', jenisDoc: 'ssm', saizFail: 245000 },
-  { id: 2, namaFail: 'Pelan_Tapak_Premis.pdf', jenisDoc: 'pelan_tapak', saizFail: 1200000 },
-  { id: 3, namaFail: 'Surat_Sokongan_Pengarah.pdf', jenisDoc: 'surat_sokongan', saizFail: 98000 }
+// --- Mock Document Data ---
+interface MockDoc { id: number; namaFail: string; jenisDoc: string; saizFail: number }
+const dokumenList = ref<MockDoc[]>([
+  { id: 1, namaFail: 'Sijil_SSM_2024.pdf', jenisDoc: 'ssm', saizFail: 245000 },
+  { id: 2, namaFail: 'Pelan_Tapak_Kilang.pdf', jenisDoc: 'pelan_tapak', saizFail: 1820000 }
 ])
 const jenisDocLabel: Record<string, string> = {
   ssm: 'Sijil SSM', lesen_sedia_ada: 'Lesen Sedia Ada',
@@ -25,6 +26,7 @@ const jenisDocOptions = [
   { label: 'Lain-lain', value: 'lain_lain' }
 ]
 const jenisDocUpload = ref('lain_lain')
+const uploadLoading = ref(false)
 const canUploadDoc = computed(() =>
   hasRole('PL', 'ADMIN') && ['draf', 'dikemukakan'].includes(permohonan.value?.status ?? '')
 )
@@ -32,72 +34,100 @@ const canUploadDoc = computed(() =>
 function uploadFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  dokumenList.value.push({
-    id: Date.now(),
-    namaFail: file.name,
-    jenisDoc: jenisDocUpload.value,
-    saizFail: file.size
-  })
-  toast.add({ title: 'Berjaya', description: 'Dokumen dimuat naik (mock).', color: 'success' })
-  ;(e.target as HTMLInputElement).value = ''
+  uploadLoading.value = true
+  setTimeout(() => {
+    const maxId = Math.max(...dokumenList.value.map(d => d.id), 0)
+    dokumenList.value.push({ id: maxId + 1, namaFail: file.name, jenisDoc: jenisDocUpload.value, saizFail: file.size })
+    toast.add({ title: 'Berjaya', description: 'Dokumen berjaya dimuat naik (simulasi).', color: 'success' })
+    uploadLoading.value = false
+    ;(e.target as HTMLInputElement).value = ''
+  }, 500)
 }
 
 function deleteDoc(docId: number) {
   dokumenList.value = dokumenList.value.filter(d => d.id !== docId)
-  toast.add({ title: 'Dipadam', description: 'Dokumen dipadam (mock).', color: 'success' })
+  toast.add({ title: 'Dipadam', description: 'Dokumen berjaya dipadam.', color: 'success' })
 }
 
-// --- Mock Data for Invoices ---
-const invoisList = ref([
-  { id: 1, noInvois: 'INV/2026/10001', jenisInvois: 'fee_permohonan', jumlah: 20000, status: 'belum_bayar' },
-])
+function downloadDoc() {
+  toast.add({ title: 'Muat Turun', description: 'Simulasi muat turun dokumen.', color: 'info' })
+}
+
+// --- Mock Invoice Data ---
+interface MockInvois { id: number; noInvois: string; jenisInvois: string; jumlah: number; status: string }
+const invoisList = ref<MockInvois[]>([])
 const invoisStatusLabel: Record<string, string> = {
   belum_bayar: 'Belum Bayar', telah_bayar: 'Telah Bayar', disahkan: 'Disahkan', batal: 'Batal'
 }
 const invoisStatusColor: Record<string, string> = {
   belum_bayar: 'warning', telah_bayar: 'info', disahkan: 'success', batal: 'error'
 }
+const showInvoisModal = ref(false)
+const invoisForm = reactive({ jenisInvois: 'fee_permohonan', jumlah: 20000 })
+const invoisLoading = ref(false)
+const canCreateInvois = computed(() =>
+  hasRole('PS', 'ADMIN') && ['semakan_PS', 'lulus_PS', 'semakan_KU'].includes(permohonan.value?.status ?? '')
+)
 
-function sahkanInvois(invoisId: number) {
-  const inv = invoisList.value.find(i => i.id === invoisId)
-  if (inv) inv.status = 'disahkan'
-  toast.add({ title: 'Disahkan', description: 'Pembayaran telah disahkan (mock).', color: 'success' })
-}
-function simulateBayar(invoisId: number) {
-  const inv = invoisList.value.find(i => i.id === invoisId)
-  if (inv) inv.status = 'telah_bayar'
-  toast.add({ title: 'Dibayar', description: 'Pembayaran simulasi berjaya.', color: 'success' })
+function createInvois() {
+  invoisLoading.value = true
+  setTimeout(() => {
+    const maxId = Math.max(...invoisList.value.map(i => i.id), 0)
+    invoisList.value.push({
+      id: maxId + 1,
+      noInvois: `INV-${new Date().getFullYear()}-${String(maxId + 1).padStart(4, '0')}`,
+      jenisInvois: invoisForm.jenisInvois,
+      jumlah: invoisForm.jumlah,
+      status: 'belum_bayar'
+    })
+    toast.add({ title: 'Berjaya', description: 'Invois berjaya dijana.', color: 'success' })
+    showInvoisModal.value = false
+    invoisLoading.value = false
+  }, 300)
 }
 
-// --- Mock Data for Syarat Lesen ---
-const syaratList = ref([
-  { id: 1, kodSyarat: 'SL-001', penerangan: 'Pegawai Perlindungan Sinaran (PPS) bertauliah mestilah dilantik sepanjang tempoh sah lesen.', kategori: 'Keselamatan' },
-  { id: 2, kodSyarat: 'SL-002', penerangan: 'Semua pekerja sinaran mesti menjalani pemeriksaan perubatan berkala setiap 12 bulan.', kategori: 'Perubatan' },
-  { id: 3, kodSyarat: 'SL-003', penerangan: 'Rekod dos sinaran pekerja perlu dikemaskini dan disimpan sekurang-kurangnya 30 tahun.', kategori: 'Penyimpanan' }
-])
+function invoisAction(invoisId: number, action: string) {
+  const inv = invoisList.value.find(i => i.id === invoisId)
+  if (!inv) return
+  if (action === 'bayar') inv.status = 'telah_bayar'
+  else if (action === 'sahkan') inv.status = 'disahkan'
+  else if (action === 'batal') inv.status = 'batal'
+  const msg = action === 'bayar' ? 'Pembayaran simulasi berjaya.' : action === 'sahkan' ? 'Pembayaran telah disahkan.' : 'Invois dibatalkan.'
+  toast.add({ title: 'Berjaya', description: msg, color: 'success' })
+}
+
+// --- Mock Syarat Lesen ---
+interface MockSyarat { id: number; kodSyarat: string; penerangan: string; kategori: string }
+const syaratList = ref<MockSyarat[]>([])
 const showSyaratModal = ref(false)
 const syaratForm = reactive({ kodSyarat: '', penerangan: '', kategori: '' })
+const syaratLoading = ref(false)
 const canEditSyarat = computed(() =>
   hasRole('PS', 'ADMIN') && permohonan.value?.status === 'semakan_PS'
 )
 
 function addSyarat() {
-  syaratList.value.push({
-    id: Date.now(),
-    kodSyarat: syaratForm.kodSyarat || `SL-${String(syaratList.value.length + 1).padStart(3, '0')}`,
-    penerangan: syaratForm.penerangan,
-    kategori: syaratForm.kategori
-  })
-  showSyaratModal.value = false
-  syaratForm.kodSyarat = ''
-  syaratForm.penerangan = ''
-  syaratForm.kategori = ''
-  toast.add({ title: 'Berjaya', description: 'Syarat lesen ditambah (mock).', color: 'success' })
+  syaratLoading.value = true
+  setTimeout(() => {
+    const maxId = Math.max(...syaratList.value.map(s => s.id), 0)
+    syaratList.value.push({
+      id: maxId + 1,
+      kodSyarat: syaratForm.kodSyarat,
+      penerangan: syaratForm.penerangan,
+      kategori: syaratForm.kategori
+    })
+    toast.add({ title: 'Berjaya', description: 'Syarat lesen berjaya ditambah.', color: 'success' })
+    showSyaratModal.value = false
+    syaratForm.kodSyarat = ''
+    syaratForm.penerangan = ''
+    syaratForm.kategori = ''
+    syaratLoading.value = false
+  }, 300)
 }
 
 function deleteSyarat(syaratId: number) {
   syaratList.value = syaratList.value.filter(s => s.id !== syaratId)
-  toast.add({ title: 'Dipadam', description: 'Syarat lesen dipadam (mock).', color: 'success' })
+  toast.add({ title: 'Dipadam', description: 'Syarat lesen berjaya dipadam.', color: 'success' })
 }
 
 // --- Kategori Kawalan ---
@@ -109,40 +139,46 @@ const canSetKategori = computed(() =>
 
 watch(() => permohonan.value, (p) => {
   if (p) {
-    kategoriKawalanForm.kategoriKawalan = (p as Record<string, string>).kategoriKawalan ?? ''
-    kategoriKawalanForm.catatanKategori = (p as Record<string, string>).catatanKategori ?? ''
+    kategoriKawalanForm.kategoriKawalan = p.kategoriKawalan ?? ''
+    kategoriKawalanForm.catatanKategori = p.catatanKategori ?? ''
   }
 }, { immediate: true })
 
 function saveKategoriKawalan() {
-  toast.add({ title: 'Berjaya', description: `Kategori kawalan "${kategoriKawalanForm.kategoriKawalan}" disimpan (mock).`, color: 'success' })
+  kategoriLoading.value = true
+  setTimeout(() => {
+    updatePermohonan(Number(route.params.id), {
+      kategoriKawalan: kategoriKawalanForm.kategoriKawalan,
+      catatanKategori: kategoriKawalanForm.catatanKategori
+    })
+    toast.add({ title: 'Berjaya', description: `Kategori kawalan "${kategoriKawalanForm.kategoriKawalan}" berjaya disimpan.`, color: 'success' })
+    kategoriLoading.value = false
+  }, 300)
 }
 
-// --- Mock Timeline ---
+// --- Timeline ---
 const timeline = computed(() => {
-  const events: { id: number; action: string; userName: string; createdAt: unknown }[] = []
+  const p = permohonan.value
+  if (!p) return []
+  const events: { id: number; action: string; userName: string; date: string }[] = []
   let idx = 1
-  if (permohonan.value?.createdAt) {
-    events.push({ id: idx++, action: 'CREATE_DRAF', userName: permohonan.value.createdByName as string ?? 'Pemohon', createdAt: permohonan.value.createdAt })
+  if (p.createdAt) events.push({ id: idx++, action: 'CREATE_DRAF', userName: p.createdByName || 'Pemohon', date: p.createdAt })
+  if (p.submittedAt) events.push({ id: idx++, action: 'SUBMIT_PERMOHONAN', userName: p.createdByName || 'Pemohon', date: p.submittedAt })
+  const status = p.status
+  if (status && !['draf', 'dikemukakan'].includes(status)) {
+    events.push({ id: idx++, action: 'STATUS_SEMAKAN_PS', userName: 'Pegawai Semakan', date: p.updatedAt })
   }
-  if (permohonan.value?.submittedAt) {
-    events.push({ id: idx++, action: 'SUBMIT_PERMOHONAN', userName: permohonan.value.createdByName as string ?? 'Pemohon', createdAt: permohonan.value.submittedAt })
+  if (['lulus_PS', 'semakan_KU', 'diluluskan'].includes(status)) {
+    events.push({ id: idx++, action: 'STATUS_LULUS_PS', userName: 'Pegawai Semakan', date: p.updatedAt })
   }
-  const status = permohonan.value?.status
-  if (status && !['draf', 'dikemukakan'].includes(status as string)) {
-    events.push({ id: idx++, action: 'STATUS_SEMAKAN_PS', userName: 'Pegawai Semakan', createdAt: permohonan.value?.updatedAt })
-  }
-  if (status && ['lulus_PS', 'semakan_KU', 'diluluskan'].includes(status as string)) {
-    events.push({ id: idx++, action: 'STATUS_LULUS_PS', userName: 'Pegawai Semakan', createdAt: permohonan.value?.updatedAt })
-  }
-  if (status && ['semakan_KU', 'diluluskan'].includes(status as string)) {
-    events.push({ id: idx++, action: 'STATUS_SEMAKAN_KU', userName: 'Ketua Unit', createdAt: permohonan.value?.updatedAt })
+  if (['semakan_KU', 'diluluskan'].includes(status)) {
+    events.push({ id: idx++, action: 'STATUS_SEMAKAN_KU', userName: 'Ketua Unit', date: p.updatedAt })
   }
   if (status === 'diluluskan') {
-    events.push({ id: idx++, action: 'STATUS_DILULUSKAN', userName: 'Ketua Unit', createdAt: permohonan.value?.approvedAt ?? permohonan.value?.updatedAt })
+    events.push({ id: idx++, action: 'STATUS_DILULUSKAN', userName: 'Ketua Unit', date: p.approvedAt || p.updatedAt })
   }
   if (status === 'ditolak') {
-    events.push({ id: idx++, action: 'STATUS_DITOLAK', userName: 'Pegawai', createdAt: permohonan.value?.updatedAt })
+    events.push({ id: idx++, action: 'STATUS_DITOLAK', userName: 'Pegawai', date: p.updatedAt })
   }
   return events
 })
@@ -187,10 +223,6 @@ const timelineIcons: Record<string, string> = {
   STATUS_DITOLAK: 'i-lucide-x-circle'
 }
 
-function formatDate(d: unknown) {
-  if (!d) return '-'
-  return new Date(Number(d) * 1000).toLocaleString('ms-MY')
-}
 function formatCurrency(sen: number) {
   return `RM ${(sen / 100).toFixed(2)}`
 }
@@ -217,42 +249,44 @@ function openAction(type: 'lulus' | 'tolak') {
   showActionModal.value = true
 }
 
-async function changeStatus(newStatus: string, successMsg: string) {
+function changeStatus(newStatus: string, successMsg: string) {
   actionLoading.value = true
-  try {
-    await $fetch(`/api/permohonan/${permohonan.value!.id}/status`, {
-      method: 'PATCH',
-      body: { status: newStatus, catatan: catatan.value || undefined }
-    })
+  setTimeout(() => {
+    const updates: Record<string, string> = { status: newStatus }
+    if (catatan.value) {
+      if (['semakan_PS', 'lulus_PS'].includes(newStatus) || (newStatus === 'ditolak' && canActPS.value)) {
+        updates.catatanPS = catatan.value
+      } else {
+        updates.catatanKU = catatan.value
+      }
+    }
+    if (newStatus === 'diluluskan') updates.approvedAt = new Date().toISOString().split('T')[0]
+    if (newStatus === 'dikemukakan') updates.submittedAt = new Date().toISOString().split('T')[0]
+    updatePermohonan(Number(route.params.id), updates)
     toast.add({ title: 'Berjaya', description: successMsg, color: 'success' })
     showActionModal.value = false
-    await refresh()
-  } catch (err: unknown) {
-    const e = err as { data?: { statusMessage?: string } }
-    toast.add({ title: 'Ralat', description: e.data?.statusMessage ?? 'Sila cuba semula.', color: 'error' })
-  } finally {
     actionLoading.value = false
-  }
+  }, 300)
 }
 
-async function submitDraf() {
+function submitDraf() {
   if (!permohonan.value) return
-  await changeStatus('dikemukakan', 'Permohonan telah dikemukakan untuk semakan.')
+  changeStatus('dikemukakan', 'Permohonan telah dikemukakan untuk semakan.')
 }
 
-async function claimSemakan() {
+function claimSemakan() {
   if (!permohonan.value) return
   const status = canClaimPS.value ? 'semakan_PS' : 'semakan_KU'
   const msg = canClaimPS.value ? 'Semakan PS dimulakan.' : 'Semakan KU dimulakan.'
-  await changeStatus(status, msg)
+  changeStatus(status, msg)
 }
 
-async function confirmAction() {
+function confirmAction() {
   if (!permohonan.value || !actionType.value) return
   let newStatus = ''
   if (canActPS.value) newStatus = actionType.value === 'lulus' ? 'lulus_PS' : 'ditolak'
   if (canActKU.value) newStatus = actionType.value === 'lulus' ? 'diluluskan' : 'ditolak'
-  await changeStatus(newStatus, `Status dikemaskini kepada: ${statusLabel[newStatus]}`)
+  changeStatus(newStatus, `Status dikemaskini kepada: ${statusLabel[newStatus]}`)
 }
 </script>
 
@@ -329,11 +363,11 @@ async function confirmAction() {
         </div>
         <div>
           <dt class="text-gray-500">Telefon</dt>
-          <dd class="font-medium mt-0.5">{{ permohonan.tel ?? '-' }}</dd>
+          <dd class="font-medium mt-0.5">{{ permohonan.tel || '-' }}</dd>
         </div>
         <div>
           <dt class="text-gray-500">E-mel</dt>
-          <dd class="font-medium mt-0.5">{{ permohonan.emailSyarikat ?? '-' }}</dd>
+          <dd class="font-medium mt-0.5">{{ permohonan.emailSyarikat || '-' }}</dd>
         </div>
       </dl>
     </UCard>
@@ -358,7 +392,7 @@ async function confirmAction() {
         </div>
         <div v-if="permohonan.subKategori">
           <dt class="text-gray-500">Sub-Kategori</dt>
-          <dd class="font-medium mt-0.5 capitalize">{{ String(permohonan.subKategori).replace(/_/g, ' ') }}</dd>
+          <dd class="font-medium mt-0.5 capitalize">{{ permohonan.subKategori.replace(/_/g, ' ') }}</dd>
         </div>
         <div v-if="permohonan.lokasi" class="col-span-2">
           <dt class="text-gray-500">Lokasi Premis</dt>
@@ -374,15 +408,15 @@ async function confirmAction() {
         </div>
         <div>
           <dt class="text-gray-500">Dikemukakan Oleh</dt>
-          <dd class="font-medium mt-0.5">{{ permohonan.createdByName ?? '-' }}</dd>
+          <dd class="font-medium mt-0.5">{{ permohonan.createdByName || '-' }}</dd>
         </div>
         <div>
           <dt class="text-gray-500">Tarikh Kemukakan</dt>
-          <dd class="font-medium mt-0.5">{{ formatDate(permohonan.submittedAt) }}</dd>
+          <dd class="font-medium mt-0.5">{{ permohonan.submittedAt || '-' }}</dd>
         </div>
         <div>
           <dt class="text-gray-500">Tarikh Kemaskini</dt>
-          <dd class="font-medium mt-0.5">{{ formatDate(permohonan.updatedAt) }}</dd>
+          <dd class="font-medium mt-0.5">{{ permohonan.updatedAt || '-' }}</dd>
         </div>
         <div v-if="permohonan.keteranganPermohonan" class="col-span-2">
           <dt class="text-gray-500">Keterangan</dt>
@@ -402,14 +436,17 @@ async function confirmAction() {
       <div class="space-y-3">
         <div v-if="dokumenList.length" class="divide-y divide-gray-100">
           <div v-for="doc in dokumenList" :key="doc.id" class="flex items-center justify-between py-2">
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 cursor-pointer hover:opacity-80" @click="downloadDoc()">
               <UIcon name="i-lucide-file-text" class="w-4 h-4 text-gray-400" />
               <div>
                 <p class="text-sm font-medium text-gray-900">{{ doc.namaFail }}</p>
                 <p class="text-xs text-gray-400">{{ jenisDocLabel[doc.jenisDoc] ?? doc.jenisDoc }} &middot; {{ (doc.saizFail / 1024).toFixed(0) }} KB</p>
               </div>
             </div>
-            <UButton v-if="canUploadDoc" icon="i-lucide-trash-2" color="error" variant="ghost" size="xs" @click="deleteDoc(doc.id)" />
+            <div class="flex items-center gap-1">
+              <UButton icon="i-lucide-download" color="neutral" variant="ghost" size="xs" @click="downloadDoc()" />
+              <UButton v-if="canUploadDoc" icon="i-lucide-trash-2" color="error" variant="ghost" size="xs" @click="deleteDoc(doc.id)" />
+            </div>
           </div>
         </div>
         <p v-else class="text-sm text-gray-400">Tiada dokumen dimuat naik.</p>
@@ -418,10 +455,11 @@ async function confirmAction() {
             <USelect v-model="jenisDocUpload" :items="jenisDocOptions" class="w-full" />
           </UFormField>
           <div class="flex-1">
-            <label class="flex items-center gap-2 px-4 py-2 rounded-md border border-dashed border-gray-300 cursor-pointer hover:border-gray-400 transition-colors">
-              <UIcon name="i-lucide-upload" class="w-4 h-4 text-gray-500" />
-              <span class="text-sm text-gray-600">Pilih fail untuk dimuat naik</span>
-              <input type="file" class="hidden" @change="uploadFile" />
+            <label class="flex items-center gap-2 px-4 py-2 rounded-md border border-dashed border-gray-300 cursor-pointer hover:border-gray-400 transition-colors"
+              :class="{ 'opacity-50 pointer-events-none': uploadLoading }">
+              <UIcon :name="uploadLoading ? 'i-lucide-loader-2' : 'i-lucide-upload'" class="w-4 h-4 text-gray-500" :class="{ 'animate-spin': uploadLoading }" />
+              <span class="text-sm text-gray-600">{{ uploadLoading ? 'Memuat naik...' : 'Pilih fail untuk dimuat naik' }}</span>
+              <input type="file" class="hidden" :disabled="uploadLoading" accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx" @change="uploadFile" />
             </label>
           </div>
         </div>
@@ -429,9 +467,14 @@ async function confirmAction() {
     </UCard>
 
     <!-- Invois & Kewangan -->
-    <UCard v-if="hasRole('PS', 'KU', 'ADMIN', 'P', 'KP')">
+    <UCard v-if="hasRole('PS', 'KU', 'ADMIN', 'P', 'KP', 'PL')">
       <template #header>
-        <h3 class="font-semibold">Invois & Kewangan</h3>
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Invois & Kewangan</h3>
+          <UButton v-if="canCreateInvois" size="xs" icon="i-lucide-plus" color="neutral" @click="showInvoisModal = true">
+            Jana Invois
+          </UButton>
+        </div>
       </template>
       <div v-if="invoisList.length" class="divide-y divide-gray-100">
         <div v-for="inv in invoisList" :key="inv.id" class="flex items-center justify-between py-3">
@@ -444,10 +487,10 @@ async function confirmAction() {
             <UBadge :color="invoisStatusColor[inv.status] ?? 'neutral'" variant="soft" size="sm">
               {{ invoisStatusLabel[inv.status] ?? inv.status }}
             </UBadge>
-            <UButton v-if="inv.status === 'belum_bayar'" size="xs" icon="i-lucide-credit-card" color="info" variant="subtle" @click="simulateBayar(inv.id)">
+            <UButton v-if="inv.status === 'belum_bayar'" size="xs" icon="i-lucide-credit-card" color="info" variant="subtle" @click="invoisAction(inv.id, 'bayar')">
               Simulasi Bayar
             </UButton>
-            <UButton v-if="hasRole('PS', 'KU', 'ADMIN') && inv.status === 'telah_bayar'" size="xs" icon="i-lucide-check" color="success" @click="sahkanInvois(inv.id)">
+            <UButton v-if="hasRole('PS', 'KU', 'ADMIN') && inv.status === 'telah_bayar'" size="xs" icon="i-lucide-check" color="success" @click="invoisAction(inv.id, 'sahkan')">
               Sahkan
             </UButton>
           </div>
@@ -457,7 +500,7 @@ async function confirmAction() {
     </UCard>
 
     <!-- Syarat Lesen -->
-    <UCard v-if="hasRole('PS', 'KU', 'ADMIN', 'P', 'KP') || syaratList.length">
+    <UCard v-if="hasRole('PS', 'KU', 'ADMIN', 'P', 'KP') || syaratList.length > 0">
       <template #header>
         <div class="flex items-center justify-between">
           <h3 class="font-semibold">Syarat Lesen</h3>
@@ -468,7 +511,7 @@ async function confirmAction() {
       </template>
       <div v-if="syaratList.length" class="space-y-2">
         <div v-for="s in syaratList" :key="s.id" class="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-          <span class="text-xs font-mono text-gray-400 mt-0.5">{{ s.kodSyarat }}.</span>
+          <span class="text-xs font-mono text-gray-400 mt-0.5">{{ s.kodSyarat || '-' }}</span>
           <div class="flex-1">
             <p class="text-sm">{{ s.penerangan }}</p>
             <p v-if="s.kategori" class="text-xs text-gray-400 mt-0.5">Kategori: {{ s.kategori }}</p>
@@ -545,7 +588,7 @@ async function confirmAction() {
           </div>
           <div>
             <p class="text-sm font-medium">{{ timelineActionLabel[event.action] ?? event.action }}</p>
-            <p class="text-xs text-gray-500">{{ event.userName }} &middot; {{ formatDate(event.createdAt) }}</p>
+            <p class="text-xs text-gray-500">{{ event.userName }} &middot; {{ event.date }}</p>
           </div>
         </div>
       </div>
@@ -601,7 +644,36 @@ async function confirmAction() {
         <template #footer>
           <div class="flex justify-end gap-2">
             <UButton color="neutral" variant="ghost" @click="showSyaratModal = false">Batal</UButton>
-            <UButton color="neutral" :disabled="!syaratForm.penerangan.trim()" @click="addSyarat">Tambah</UButton>
+            <UButton color="neutral" :loading="syaratLoading" :disabled="!syaratForm.penerangan.trim()" @click="addSyarat">Tambah</UButton>
+          </div>
+        </template>
+      </UCard>
+    </template>
+  </UModal>
+
+  <!-- Jana Invois Modal -->
+  <UModal v-model:open="showInvoisModal">
+    <template #content>
+      <UCard>
+        <template #header>
+          <h3 class="font-semibold">Jana Invois Baharu</h3>
+        </template>
+        <div class="space-y-3">
+          <UFormField label="Jenis Invois" required>
+            <USelect v-model="invoisForm.jenisInvois" :items="[
+              { label: 'Fee Permohonan', value: 'fee_permohonan' },
+              { label: 'Fee Lesen', value: 'fee_lesen' }
+            ]" class="w-full" />
+          </UFormField>
+          <UFormField label="Jumlah (sen)" required>
+            <UInput v-model.number="invoisForm.jumlah" type="number" :min="100" placeholder="20000" class="w-full" />
+            <p class="text-xs text-gray-400 mt-1">{{ formatCurrency(invoisForm.jumlah || 0) }}</p>
+          </UFormField>
+        </div>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" @click="showInvoisModal = false">Batal</UButton>
+            <UButton color="neutral" :loading="invoisLoading" :disabled="!invoisForm.jumlah || invoisForm.jumlah <= 0" @click="createInvois">Jana</UButton>
           </div>
         </template>
       </UCard>

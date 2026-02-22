@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mockLogout } from '~/composables/useAuth'
 const { user, role, isInternal } = useAuthUser()
 const route = useRoute()
 const expandedModules = ref<string[]>([])
@@ -139,7 +140,7 @@ const roleLabels: Record<string, string> = {
 }
 
 async function handleSignOut() {
-  await authClient.signOut()
+  mockLogout()
   await navigateTo('/login')
 }
 </script>

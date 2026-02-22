@@ -24,4 +24,13 @@ select.bg-default,
 
 @theme static {
   --font-sans: 'Public Sans', sans-serif;
+
+  /* ATOM brand colors */
+  --color-atom: #a21a0b;
+  --color-atom-light: #bf2d1c;
+  --color-atom-dark: #8a1509;
+  --color-atom-blue: #3b82f6;
+  --color-atom-blue-dark: #2563eb;
+  --color-atom-teal: #1d4354;
+  --color-atom-teal-light: #275a6e;
 }

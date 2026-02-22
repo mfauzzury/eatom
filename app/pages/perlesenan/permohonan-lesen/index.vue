@@ -2,19 +2,12 @@
 definePageMeta({ title: 'Senarai Permohonan Lesen' })
 
 const { role, hasRole } = useAuthUser()
+const { getFiltered } = useMockData()
 
-const page = ref(1)
 const search = ref('')
 const statusFilter = ref('')
 
-const { data, pending, refresh } = await useFetch('/api/permohonan', {
-  query: computed(() => ({
-    page: page.value,
-    limit: 20,
-    search: search.value || undefined,
-    status: statusFilter.value || undefined
-  }))
-})
+const filteredData = computed(() => getFiltered(search.value || undefined, statusFilter.value || undefined))
 
 const statusOptions = [
   { label: 'Semua', value: '' },
@@ -59,11 +52,6 @@ const columns = [
   { accessorKey: 'updatedAt', header: 'Kemaskini' },
   { id: 'actions', header: '' }
 ]
-
-function formatDate(d: unknown) {
-  if (!d) return '-'
-  return new Date(Number(d) * 1000).toLocaleDateString('ms-MY')
-}
 </script>
 
 <template>
@@ -120,9 +108,8 @@ function formatDate(d: unknown) {
     <!-- Table -->
     <UCard :ui="{ body: 'p-0' }">
       <UTable
-        :data="data?.data ?? []"
+        :data="filteredData"
         :columns="columns"
-        :loading="pending"
         hover
       >
         <template #status-cell="{ row }">
@@ -138,7 +125,7 @@ function formatDate(d: unknown) {
           {{ jenisLabel[row.original.jenisPermohonan] ?? row.original.jenisPermohonan }}
         </template>
         <template #updatedAt-cell="{ row }">
-          {{ formatDate(row.original.updatedAt) }}
+          {{ row.original.updatedAt || '-' }}
         </template>
         <template #actions-cell="{ row }">
           <div class="flex gap-1">
