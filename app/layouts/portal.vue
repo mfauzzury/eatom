@@ -220,6 +220,14 @@ async function handleLogout() {
           </div>
         </div>
       </footer>
+      <!-- Floating back to gate button -->
+      <NuxtLink
+        to="/gate"
+        class="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-medium rounded-full shadow-lg transition-colors"
+      >
+        <UIcon name="i-lucide-arrow-left-right" class="w-3.5 h-3.5" />
+        Tukar Sistem
+      </NuxtLink>
     </div>
   </UApp>
 </template>

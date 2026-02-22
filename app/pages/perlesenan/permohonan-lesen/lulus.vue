@@ -1,12 +1,22 @@
 <script setup lang="ts">
 definePageMeta({ title: 'Senarai Lesen Diluluskan' })
 
-const { hasRole } = useAuthUser()
-const showSijil = ref(false)
-const selectedLesen = ref<typeof senaraiLulus.value[0] | null>(null)
+interface Lesen {
+  id: number
+  noRujukan: string
+  noSijil: string
+  namaSyarikat: string
+  kategoriLesen: string
+  subKategori: string
+  kategoriKawalan: string
+  tarikhLulus: string
+  tarikhMula: string
+  tarikhTamat: string
+  negeri: string
+  status: string
+}
 
-// Mock data for approved licenses
-const senaraiLulus = ref([
+const senaraiLulus = ref<Lesen[]>([
   {
     id: 1,
     noRujukan: 'PLN/2026/00001',
@@ -76,13 +86,16 @@ const statusColor: Record<string, string> = {
   aktif: 'success', tamat_tempoh: 'warning', dibatalkan: 'error'
 }
 
-const filterKategori = ref('')
-const filterStatus = ref('')
+const filterKategori = ref<string | undefined>(undefined)
+const filterStatus = ref<string | undefined>(undefined)
+const showSijil = ref(false)
+const selectedLesen = ref<Lesen | null>(null)
 
 const filtered = computed(() => {
   return senaraiLulus.value.filter(l => {
     if (filterKategori.value && l.kategoriLesen !== filterKategori.value) return false
     if (filterStatus.value && l.status !== filterStatus.value) return false
+
     return true
   })
 })
@@ -98,13 +111,13 @@ const columns = [
   { id: 'actions', header: '' }
 ]
 
-function openSijil(lesen: typeof senaraiLulus.value[0]) {
+function openSijil(lesen: Lesen) {
   selectedLesen.value = lesen
   showSijil.value = true
 }
 
 function cetakSijil() {
-  window.print()
+  if (import.meta.client) window.print()
 }
 </script>
 
@@ -121,14 +134,20 @@ function cetakSijil() {
     <div class="flex gap-3">
       <USelect
         v-model="filterKategori"
-        :items="[{ label: 'Semua Kategori', value: '' }, ...Object.entries(kategoriLabel).map(([v, l]) => ({ label: l, value: v }))]"
+        :items="Object.entries(kategoriLabel).map(([v, l]) => ({ label: l, value: v }))"
+        placeholder="Semua Kategori"
         class="w-48"
       />
       <USelect
         v-model="filterStatus"
-        :items="[{ label: 'Semua Status', value: '' }, ...Object.entries(statusLabel).map(([v, l]) => ({ label: l, value: v }))]"
+        :items="Object.entries(statusLabel).map(([v, l]) => ({ label: l, value: v }))"
+        placeholder="Semua Status"
         class="w-40"
       />
+      <UButton v-if="filterKategori || filterStatus" color="neutral" variant="ghost" size="sm" @click="filterKategori = undefined; filterStatus = undefined">
+        <UIcon name="i-lucide-x" class="w-3.5 h-3.5 mr-1" />
+        Reset
+      </UButton>
     </div>
 
     <UCard :ui="{ body: 'p-0' }">
@@ -166,77 +185,78 @@ function cetakSijil() {
     </UCard>
   </div>
 
-  <!-- Sijil Lesen Modal -->
-  <UModal v-model:open="showSijil" :ui="{ width: 'max-w-2xl' }">
-    <template #content>
-      <UCard v-if="selectedLesen">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="font-semibold">Sijil Lesen</h3>
-            <UButton icon="i-lucide-printer" color="neutral" variant="ghost" size="sm" @click="cetakSijil">Cetak</UButton>
-          </div>
-        </template>
+  <!-- Sijil Lesen Modal (client-only to avoid SSR hydration issues) -->
+  <ClientOnly>
+    <UModal v-model:open="showSijil" :ui="{ width: 'max-w-2xl' }">
+      <template #content>
+        <UCard v-if="selectedLesen">
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold">Sijil Lesen</h3>
+              <UButton icon="i-lucide-printer" color="neutral" variant="ghost" size="sm" @click="cetakSijil">Cetak</UButton>
+            </div>
+          </template>
 
-        <!-- Printable Certificate -->
-        <div class="border-2 border-gray-800 rounded-lg p-8 bg-white print:border-black">
-          <div class="text-center space-y-2 mb-6">
-            <p class="text-xs uppercase tracking-widest text-gray-500">Lembaga Perlesenan Tenaga Atom</p>
-            <h2 class="text-2xl font-bold text-gray-900">SIJIL LESEN</h2>
-            <p class="text-sm text-gray-600">Akta Tenaga Atom 1984 (Akta 304)</p>
-            <div class="w-24 h-0.5 bg-gray-800 mx-auto mt-3" />
-          </div>
-
-          <div class="space-y-4 text-sm">
-            <div class="flex">
-              <span class="w-44 text-gray-500">No. Sijil</span>
-              <span class="font-bold text-lg">{{ selectedLesen.noSijil }}</span>
-            </div>
-            <div class="flex">
-              <span class="w-44 text-gray-500">No. Rujukan</span>
-              <span class="font-medium">{{ selectedLesen.noRujukan }}</span>
-            </div>
-            <div class="flex">
-              <span class="w-44 text-gray-500">Nama Pemegang Lesen</span>
-              <span class="font-medium">{{ selectedLesen.namaSyarikat }}</span>
-            </div>
-            <div class="flex">
-              <span class="w-44 text-gray-500">Kategori</span>
-              <span class="font-medium">{{ kategoriLabel[selectedLesen.kategoriLesen] ?? selectedLesen.kategoriLesen }}</span>
-            </div>
-            <div class="flex">
-              <span class="w-44 text-gray-500">Kategori Kawalan</span>
-              <span class="font-medium">{{ selectedLesen.kategoriKawalan }}</span>
-            </div>
-            <div class="flex">
-              <span class="w-44 text-gray-500">Negeri</span>
-              <span class="font-medium">{{ selectedLesen.negeri }}</span>
+          <div class="border-2 border-gray-800 rounded-lg p-8 bg-white print:border-black">
+            <div class="text-center space-y-2 mb-6">
+              <p class="text-xs uppercase tracking-widest text-gray-500">Lembaga Perlesenan Tenaga Atom</p>
+              <h2 class="text-2xl font-bold text-gray-900">SIJIL LESEN</h2>
+              <p class="text-sm text-gray-600">Akta Tenaga Atom 1984 (Akta 304)</p>
+              <div class="w-24 h-0.5 bg-gray-800 mx-auto mt-3" />
             </div>
 
-            <div class="border-t border-gray-200 pt-4 mt-4">
+            <div class="space-y-4 text-sm">
               <div class="flex">
-                <span class="w-44 text-gray-500">Tarikh Kelulusan</span>
-                <span class="font-medium">{{ selectedLesen.tarikhLulus }}</span>
+                <span class="w-44 text-gray-500">No. Sijil</span>
+                <span class="font-bold text-lg">{{ selectedLesen.noSijil }}</span>
               </div>
-              <div class="flex mt-2">
-                <span class="w-44 text-gray-500">Tempoh Sah Dari</span>
-                <span class="font-medium">{{ selectedLesen.tarikhMula }}</span>
+              <div class="flex">
+                <span class="w-44 text-gray-500">No. Rujukan</span>
+                <span class="font-medium">{{ selectedLesen.noRujukan }}</span>
               </div>
-              <div class="flex mt-2">
-                <span class="w-44 text-gray-500">Tempoh Sah Sehingga</span>
-                <span class="font-bold">{{ selectedLesen.tarikhTamat }}</span>
+              <div class="flex">
+                <span class="w-44 text-gray-500">Nama Pemegang Lesen</span>
+                <span class="font-medium">{{ selectedLesen.namaSyarikat }}</span>
               </div>
-            </div>
+              <div class="flex">
+                <span class="w-44 text-gray-500">Kategori</span>
+                <span class="font-medium">{{ kategoriLabel[selectedLesen.kategoriLesen] ?? selectedLesen.kategoriLesen }}</span>
+              </div>
+              <div class="flex">
+                <span class="w-44 text-gray-500">Kategori Kawalan</span>
+                <span class="font-medium">{{ selectedLesen.kategoriKawalan }}</span>
+              </div>
+              <div class="flex">
+                <span class="w-44 text-gray-500">Negeri</span>
+                <span class="font-medium">{{ selectedLesen.negeri }}</span>
+              </div>
 
-            <div class="border-t border-gray-200 pt-6 mt-6 text-center">
-              <p class="text-xs text-gray-400 mb-8">Sijil ini dikeluarkan secara elektronik dan sah tanpa tandatangan.</p>
-              <div class="inline-block border-t border-gray-400 pt-2 px-12">
-                <p class="text-sm font-medium">Ketua Pengarah</p>
-                <p class="text-xs text-gray-500">Lembaga Perlesenan Tenaga Atom</p>
+              <div class="border-t border-gray-200 pt-4 mt-4">
+                <div class="flex">
+                  <span class="w-44 text-gray-500">Tarikh Kelulusan</span>
+                  <span class="font-medium">{{ selectedLesen.tarikhLulus }}</span>
+                </div>
+                <div class="flex mt-2">
+                  <span class="w-44 text-gray-500">Tempoh Sah Dari</span>
+                  <span class="font-medium">{{ selectedLesen.tarikhMula }}</span>
+                </div>
+                <div class="flex mt-2">
+                  <span class="w-44 text-gray-500">Tempoh Sah Sehingga</span>
+                  <span class="font-bold">{{ selectedLesen.tarikhTamat }}</span>
+                </div>
+              </div>
+
+              <div class="border-t border-gray-200 pt-6 mt-6 text-center">
+                <p class="text-xs text-gray-400 mb-8">Sijil ini dikeluarkan secara elektronik dan sah tanpa tandatangan.</p>
+                <div class="inline-block border-t border-gray-400 pt-2 px-12">
+                  <p class="text-sm font-medium">Ketua Pengarah</p>
+                  <p class="text-xs text-gray-500">Lembaga Perlesenan Tenaga Atom</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </UCard>
-    </template>
-  </UModal>
+        </UCard>
+      </template>
+    </UModal>
+  </ClientOnly>
 </template>

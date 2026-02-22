@@ -2,7 +2,7 @@
 import { mockLogout } from '~/composables/useAuth'
 const { user, role, isInternal } = useAuthUser()
 const route = useRoute()
-const expandedModules = ref<string[]>([])
+const expandedModule = ref<string | null>(null)
 
 interface NavChild {
   label: string
@@ -16,13 +16,11 @@ interface NavItem {
 }
 
 function toggleModule(label: string) {
-  const idx = expandedModules.value.indexOf(label)
-  if (idx >= 0) expandedModules.value.splice(idx, 1)
-  else expandedModules.value.push(label)
+  expandedModule.value = expandedModule.value === label ? null : label
 }
 
 function isExpanded(label: string) {
-  return expandedModules.value.includes(label)
+  return expandedModule.value === label
 }
 
 function isModuleActive(item: NavItem) {
@@ -123,8 +121,9 @@ const navItems = computed<NavItem[]>(() => [
 // Auto-expand active module
 watchEffect(() => {
   for (const item of navItems.value) {
-    if (item.children && isModuleActive(item) && !expandedModules.value.includes(item.label)) {
-      expandedModules.value.push(item.label)
+    if (item.children && isModuleActive(item)) {
+      expandedModule.value = item.label
+      break
     }
   }
 })
@@ -171,7 +170,7 @@ async function handleSignOut() {
               class="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors"
               :class="$route.path.startsWith(item.to!)
                 ? 'bg-gray-100 text-gray-900'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'"
+                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
             >
               <UIcon :name="item.icon" class="w-4 h-4 shrink-0" />
               {{ item.label }}
@@ -183,7 +182,7 @@ async function handleSignOut() {
                 class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 :class="isModuleActive(item)
                   ? 'bg-gray-100 text-gray-900'
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'"
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
                 @click="toggleModule(item.label)"
               >
                 <UIcon :name="item.icon" class="w-4 h-4 shrink-0" />
@@ -202,7 +201,7 @@ async function handleSignOut() {
                   class="flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
                   :class="$route.path.startsWith(child.to)
                     ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'"
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
                 >
                   {{ child.label }}
                 </NuxtLink>
@@ -248,6 +247,14 @@ async function handleSignOut() {
           <NuxtPage />
         </main>
       </div>
+      <!-- Floating back to gate button -->
+      <NuxtLink
+        to="/gate"
+        class="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-medium rounded-full shadow-lg transition-colors"
+      >
+        <UIcon name="i-lucide-arrow-left-right" class="w-3.5 h-3.5" />
+        Tukar Sistem
+      </NuxtLink>
     </div>
   </UApp>
 </template>

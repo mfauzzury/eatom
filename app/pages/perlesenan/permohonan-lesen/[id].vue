@@ -593,90 +593,92 @@ function confirmAction() {
         </div>
       </div>
     </UCard>
+
+    <ClientOnly>
+    <!-- Action Modal -->
+    <UModal v-model:open="showActionModal">
+      <template #content>
+        <UCard>
+          <template #header>
+            <h3 class="font-semibold">{{ actionType === 'lulus' ? 'Luluskan Permohonan' : 'Tolak Permohonan' }}</h3>
+          </template>
+          <div class="space-y-3">
+            <UAlert :color="actionType === 'lulus' ? 'success' : 'error'" variant="subtle"
+              :icon="actionType === 'lulus' ? 'i-lucide-check-circle' : 'i-lucide-x-circle'"
+              :description="`Anda akan ${actionType === 'lulus' ? 'meluluskan' : 'menolak'} permohonan ${permohonan?.noRujukan}.`" />
+            <UFormField :label="actionType === 'tolak' ? 'Sebab Penolakan (wajib)' : 'Catatan (pilihan)'">
+              <UTextarea v-model="catatan" :rows="3" class="w-full" placeholder="Masukkan catatan..." />
+            </UFormField>
+          </div>
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton color="neutral" variant="ghost" @click="showActionModal = false">Batal</UButton>
+              <UButton :color="actionType === 'lulus' ? 'success' : 'error'" :loading="actionLoading"
+                :disabled="actionType === 'tolak' && !catatan.trim()" @click="confirmAction">
+                {{ actionType === 'lulus' ? 'Lulus' : 'Tolak' }}
+              </UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
+
+    <!-- Syarat Lesen Modal -->
+    <UModal v-model:open="showSyaratModal">
+      <template #content>
+        <UCard>
+          <template #header>
+            <h3 class="font-semibold">Tambah Syarat Lesen</h3>
+          </template>
+          <div class="space-y-3">
+            <UFormField label="Kod Syarat">
+              <UInput v-model="syaratForm.kodSyarat" placeholder="cth: SL-001" class="w-full" />
+            </UFormField>
+            <UFormField label="Penerangan Syarat" required>
+              <UTextarea v-model="syaratForm.penerangan" :rows="3" placeholder="Masukkan syarat lesen..." class="w-full" />
+            </UFormField>
+            <UFormField label="Kategori">
+              <UInput v-model="syaratForm.kategori" placeholder="cth: Keselamatan, Penyimpanan" class="w-full" />
+            </UFormField>
+          </div>
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton color="neutral" variant="ghost" @click="showSyaratModal = false">Batal</UButton>
+              <UButton color="neutral" :loading="syaratLoading" :disabled="!syaratForm.penerangan.trim()" @click="addSyarat">Tambah</UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
+
+    <!-- Jana Invois Modal -->
+    <UModal v-model:open="showInvoisModal">
+      <template #content>
+        <UCard>
+          <template #header>
+            <h3 class="font-semibold">Jana Invois Baharu</h3>
+          </template>
+          <div class="space-y-3">
+            <UFormField label="Jenis Invois" required>
+              <USelect v-model="invoisForm.jenisInvois" :items="[
+                { label: 'Fee Permohonan', value: 'fee_permohonan' },
+                { label: 'Fee Lesen', value: 'fee_lesen' }
+              ]" class="w-full" />
+            </UFormField>
+            <UFormField label="Jumlah (sen)" required>
+              <UInput v-model.number="invoisForm.jumlah" type="number" :min="100" placeholder="20000" class="w-full" />
+              <p class="text-xs text-gray-400 mt-1">{{ formatCurrency(invoisForm.jumlah || 0) }}</p>
+            </UFormField>
+          </div>
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton color="neutral" variant="ghost" @click="showInvoisModal = false">Batal</UButton>
+              <UButton color="neutral" :loading="invoisLoading" :disabled="!invoisForm.jumlah || invoisForm.jumlah <= 0" @click="createInvois">Jana</UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
+    </ClientOnly>
   </div>
-
-  <!-- Action Modal -->
-  <UModal v-model:open="showActionModal">
-    <template #content>
-      <UCard>
-        <template #header>
-          <h3 class="font-semibold">{{ actionType === 'lulus' ? 'Luluskan Permohonan' : 'Tolak Permohonan' }}</h3>
-        </template>
-        <div class="space-y-3">
-          <UAlert :color="actionType === 'lulus' ? 'success' : 'error'" variant="subtle"
-            :icon="actionType === 'lulus' ? 'i-lucide-check-circle' : 'i-lucide-x-circle'"
-            :description="`Anda akan ${actionType === 'lulus' ? 'meluluskan' : 'menolak'} permohonan ${permohonan?.noRujukan}.`" />
-          <UFormField :label="actionType === 'tolak' ? 'Sebab Penolakan (wajib)' : 'Catatan (pilihan)'">
-            <UTextarea v-model="catatan" :rows="3" class="w-full" placeholder="Masukkan catatan..." />
-          </UFormField>
-        </div>
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" @click="showActionModal = false">Batal</UButton>
-            <UButton :color="actionType === 'lulus' ? 'success' : 'error'" :loading="actionLoading"
-              :disabled="actionType === 'tolak' && !catatan.trim()" @click="confirmAction">
-              {{ actionType === 'lulus' ? 'Lulus' : 'Tolak' }}
-            </UButton>
-          </div>
-        </template>
-      </UCard>
-    </template>
-  </UModal>
-
-  <!-- Syarat Lesen Modal -->
-  <UModal v-model:open="showSyaratModal">
-    <template #content>
-      <UCard>
-        <template #header>
-          <h3 class="font-semibold">Tambah Syarat Lesen</h3>
-        </template>
-        <div class="space-y-3">
-          <UFormField label="Kod Syarat">
-            <UInput v-model="syaratForm.kodSyarat" placeholder="cth: SL-001" class="w-full" />
-          </UFormField>
-          <UFormField label="Penerangan Syarat" required>
-            <UTextarea v-model="syaratForm.penerangan" :rows="3" placeholder="Masukkan syarat lesen..." class="w-full" />
-          </UFormField>
-          <UFormField label="Kategori">
-            <UInput v-model="syaratForm.kategori" placeholder="cth: Keselamatan, Penyimpanan" class="w-full" />
-          </UFormField>
-        </div>
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" @click="showSyaratModal = false">Batal</UButton>
-            <UButton color="neutral" :loading="syaratLoading" :disabled="!syaratForm.penerangan.trim()" @click="addSyarat">Tambah</UButton>
-          </div>
-        </template>
-      </UCard>
-    </template>
-  </UModal>
-
-  <!-- Jana Invois Modal -->
-  <UModal v-model:open="showInvoisModal">
-    <template #content>
-      <UCard>
-        <template #header>
-          <h3 class="font-semibold">Jana Invois Baharu</h3>
-        </template>
-        <div class="space-y-3">
-          <UFormField label="Jenis Invois" required>
-            <USelect v-model="invoisForm.jenisInvois" :items="[
-              { label: 'Fee Permohonan', value: 'fee_permohonan' },
-              { label: 'Fee Lesen', value: 'fee_lesen' }
-            ]" class="w-full" />
-          </UFormField>
-          <UFormField label="Jumlah (sen)" required>
-            <UInput v-model.number="invoisForm.jumlah" type="number" :min="100" placeholder="20000" class="w-full" />
-            <p class="text-xs text-gray-400 mt-1">{{ formatCurrency(invoisForm.jumlah || 0) }}</p>
-          </UFormField>
-        </div>
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" @click="showInvoisModal = false">Batal</UButton>
-            <UButton color="neutral" :loading="invoisLoading" :disabled="!invoisForm.jumlah || invoisForm.jumlah <= 0" @click="createInvois">Jana</UButton>
-          </div>
-        </template>
-      </UCard>
-    </template>
-  </UModal>
 </template>
