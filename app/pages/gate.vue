@@ -91,6 +91,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <ClientOnly>
   <!-- Step 1: PIN Entry -->
   <UCard v-if="step === 'pin'" class="shadow-2xl">
     <div class="text-center space-y-6 py-2">
@@ -180,6 +181,7 @@ onMounted(() => {
       Log Keluar
     </button>
   </div>
+  </ClientOnly>
 </template>
 
 <style scoped>
