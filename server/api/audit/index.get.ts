@@ -1,6 +1,4 @@
-import { desc, eq } from 'drizzle-orm'
-import { db } from '../../db'
-import { auditTrail, user } from '../../db/schema'
+import { auditTrailList, getUser } from '../../data/dummy'
 import { requireRole } from '../../utils/rbac'
 
 export default defineEventHandler(async (event) => {
@@ -8,22 +6,18 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const limit = Number(query.limit ?? 50)
 
-  const rows = await db
-    .select({
-      id: auditTrail.id,
-      action: auditTrail.action,
-      resourceType: auditTrail.resourceType,
-      resourceId: auditTrail.resourceId,
-      newValue: auditTrail.newValue,
-      createdAt: auditTrail.createdAt,
-      userName: user.name,
-      userEmail: user.email,
-      userRole: user.role
-    })
-    .from(auditTrail)
-    .leftJoin(user, eq(auditTrail.userId, user.id))
-    .orderBy(desc(auditTrail.createdAt))
-    .limit(limit)
-
-  return rows
+  return auditTrailList.slice(0, limit).map(a => {
+    const u = a.userId ? getUser(a.userId) : null
+    return {
+      id: a.id,
+      action: a.action,
+      resourceType: a.resourceType,
+      resourceId: a.resourceId,
+      newValue: a.newValue,
+      createdAt: a.createdAt,
+      userName: u?.name ?? null,
+      userEmail: u?.email ?? null,
+      userRole: u?.role ?? null,
+    }
+  })
 })

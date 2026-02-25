@@ -1,52 +1,47 @@
-import { eq } from 'drizzle-orm'
-import { db } from '../../../db'
-import { permohonanLesen, syarikat, user } from '../../../db/schema'
+import { permohonanList, getSyarikat, getUser } from '../../../data/dummy'
 import { requireAuth } from '../../../utils/rbac'
 
 export default defineEventHandler(async (event) => {
   await requireAuth(event)
   const id = Number(getRouterParam(event, 'id'))
 
-  const [row] = await db
-    .select({
-      id: permohonanLesen.id,
-      noRujukan: permohonanLesen.noRujukan,
-      jenisPermohonan: permohonanLesen.jenisPermohonan,
-      status: permohonanLesen.status,
-      kategoriLesen: permohonanLesen.kategoriLesen,
-      subKategori: permohonanLesen.subKategori,
-      lokasi: permohonanLesen.lokasi,
-      aktiviti: permohonanLesen.aktiviti,
-      bilPeralatan: permohonanLesen.bilPeralatan,
-      noLesenSediaAda: permohonanLesen.noLesenSediaAda,
-      keteranganPermohonan: permohonanLesen.keteranganPermohonan,
-      kategoriKawalan: permohonanLesen.kategoriKawalan,
-      catatanKategori: permohonanLesen.catatanKategori,
-      catatanPS: permohonanLesen.catatanPS,
-      catatanKU: permohonanLesen.catatanKU,
-      createdAt: permohonanLesen.createdAt,
-      updatedAt: permohonanLesen.updatedAt,
-      submittedAt: permohonanLesen.submittedAt,
-      approvedAt: permohonanLesen.approvedAt,
-      syarikatId: permohonanLesen.syarikatId,
-      namaSyarikat: syarikat.namaSyarikat,
-      noDaftar: syarikat.noDaftar,
-      alamat: syarikat.alamat,
-      poskod: syarikat.poskod,
-      negeri: syarikat.negeri,
-      tel: syarikat.tel,
-      emailSyarikat: syarikat.email,
-      createdByName: user.name,
-      createdByEmail: user.email
-    })
-    .from(permohonanLesen)
-    .leftJoin(syarikat, eq(permohonanLesen.syarikatId, syarikat.id))
-    .leftJoin(user, eq(permohonanLesen.createdBy, user.id))
-    .where(eq(permohonanLesen.id, id))
-
-  if (!row) {
+  const p = permohonanList.find(r => r.id === id)
+  if (!p) {
     throw createError({ statusCode: 404, statusMessage: 'Permohonan tidak dijumpai' })
   }
 
-  return row
+  const s = getSyarikat(p.syarikatId)
+  const creator = getUser(p.createdBy)
+
+  return {
+    id: p.id,
+    noRujukan: p.noRujukan,
+    jenisPermohonan: p.jenisPermohonan,
+    status: p.status,
+    kategoriLesen: p.kategoriLesen,
+    subKategori: p.subKategori,
+    lokasi: p.lokasi,
+    aktiviti: p.aktiviti,
+    bilPeralatan: p.bilPeralatan,
+    noLesenSediaAda: p.noLesenSediaAda,
+    keteranganPermohonan: p.keteranganPermohonan,
+    kategoriKawalan: p.kategoriKawalan,
+    catatanKategori: p.catatanKategori,
+    catatanPS: p.catatanPS,
+    catatanKU: p.catatanKU,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    submittedAt: p.submittedAt,
+    approvedAt: p.approvedAt,
+    syarikatId: p.syarikatId,
+    namaSyarikat: s?.namaSyarikat ?? null,
+    noDaftar: s?.noDaftar ?? null,
+    alamat: s?.alamat ?? null,
+    poskod: s?.poskod ?? null,
+    negeri: s?.negeri ?? null,
+    tel: s?.tel ?? null,
+    emailSyarikat: s?.email ?? null,
+    createdByName: creator?.name ?? null,
+    createdByEmail: creator?.email ?? null,
+  }
 })

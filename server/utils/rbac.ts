@@ -30,16 +30,6 @@ export async function insertAuditTrail(params: {
   ipAddress?: string | null
   userAgent?: string | null
 }) {
-  const { db } = await import('../db')
-  const { auditTrail } = await import('../db/schema')
-  await db.insert(auditTrail).values({
-    userId: params.userId ?? null,
-    action: params.action,
-    resourceType: params.resourceType,
-    resourceId: params.resourceId ?? null,
-    oldValue: params.oldValue ? JSON.stringify(params.oldValue) : null,
-    newValue: params.newValue ? JSON.stringify(params.newValue) : null,
-    ipAddress: params.ipAddress ?? null,
-    userAgent: params.userAgent ?? null
-  })
+  // No-op for Vercel deployment — audit trail disabled
+  console.log(`[audit] ${params.action} on ${params.resourceType}/${params.resourceId ?? '?'}`)
 }
