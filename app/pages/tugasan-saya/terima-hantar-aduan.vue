@@ -1,7 +1,13 @@
 <script setup lang="ts">
-definePageMeta({ title: 'Terima / Hantar Aduan' })
+definePageMeta({ title: 'Terima Aduan' })
 
+const { isInternal } = useAuthUser()
 const toast = useToast()
+
+// Redirect non-staff users away
+if (import.meta.client && !isInternal.value) {
+  await navigateTo('/dashboard')
+}
 
 interface Aduan {
   id: number
@@ -15,6 +21,7 @@ interface Aduan {
   tindakan: string
 }
 
+// Shared state — same key as profil-saya/hantar-aduan page
 const aduanList = useState<Aduan[]>('aduan_list', () => [
   { id: 1, tajuk: 'Kerosakan Alat Pengukur Radiasi', pengadu: 'Ahmad Teknisi', keutamaan: 'tinggi', status: 'dalam_proses', tarikh: '2026-02-20', penerangan: 'Alat pengukur radiasi di makmal B3 tidak berfungsi sejak minggu lepas. Bacaan tidak konsisten dan perlu penggantian segera.', lokasi: 'Makmal B3, Aras 2', tindakan: 'Telah hubungi vendor untuk pembaikan.' },
   { id: 2, tajuk: 'Kebocoran Paip di Stor Bahan', pengadu: 'Siti Penyelenggara', keutamaan: 'tinggi', status: 'menunggu', tarikh: '2026-02-22', penerangan: 'Terdapat kebocoran paip di stor bahan kimia yang boleh menjejaskan keselamatan bahan. Memerlukan tindakan segera.', lokasi: 'Stor Bahan, Aras 1', tindakan: '' },
@@ -30,7 +37,6 @@ const tab = ref('semua')
 const search = ref('')
 const selectedAduan = ref<Aduan | null>(null)
 const showDetailModal = ref(false)
-const showAddModal = ref(false)
 const actionText = ref('')
 const actionStatus = ref('')
 const saving = ref(false)
@@ -42,32 +48,21 @@ const tabs = [
   { label: 'Selesai', value: 'selesai' },
 ]
 
-const addForm = reactive({
-  tajuk: '',
-  pengadu: '',
-  keutamaan: '' as string,
-  penerangan: '',
-  lokasi: '',
-})
-
 const priorityColour: Record<string, string> = {
   tinggi: 'error',
   sederhana: 'warning',
   rendah: 'neutral',
 }
-
 const priorityLabel: Record<string, string> = {
   tinggi: 'Tinggi',
   sederhana: 'Sederhana',
   rendah: 'Rendah',
 }
-
 const statusColour: Record<string, string> = {
   menunggu: 'warning',
   dalam_proses: 'info',
   selesai: 'success',
 }
-
 const statusLabel: Record<string, string> = {
   menunggu: 'Menunggu',
   dalam_proses: 'Dalam Proses',
@@ -84,7 +79,7 @@ const filtered = computed(() => {
     list = list.filter(a =>
       a.tajuk.toLowerCase().includes(q) ||
       a.pengadu.toLowerCase().includes(q) ||
-      a.lokasi.toLowerCase().includes(q)
+      a.lokasi.toLowerCase().includes(q),
     )
   }
   return list
@@ -127,59 +122,28 @@ function saveAction() {
   saving.value = false
   showDetailModal.value = false
 }
-
-function saveAddAduan() {
-  if (!addForm.tajuk || !addForm.pengadu || !addForm.keutamaan || !addForm.penerangan) {
-    toast.add({ title: 'Ralat', description: 'Sila lengkapkan semua medan wajib.', color: 'error' })
-    return
-  }
-  const maxId = Math.max(...aduanList.value.map(a => a.id), 0)
-  aduanList.value.unshift({
-    id: maxId + 1,
-    tajuk: addForm.tajuk,
-    pengadu: addForm.pengadu,
-    keutamaan: addForm.keutamaan as Aduan['keutamaan'],
-    status: 'menunggu',
-    tarikh: new Date().toISOString().slice(0, 10),
-    penerangan: addForm.penerangan,
-    lokasi: addForm.lokasi || '-',
-    tindakan: '',
-  })
-  toast.add({ title: 'Berjaya', description: 'Aduan baru berjaya dihantar.', color: 'success' })
-  showAddModal.value = false
-  addForm.tajuk = ''
-  addForm.pengadu = ''
-  addForm.keutamaan = ''
-  addForm.penerangan = ''
-  addForm.lokasi = ''
-}
 </script>
 
 <template>
   <div class="space-y-4">
     <!-- Header -->
-    <div class="flex items-start justify-between">
-      <div>
-        <h2 class="text-xl font-bold text-gray-900">Terima / Hantar Aduan</h2>
-        <p class="text-sm text-gray-500">Urus aduan dalaman dan luaran berkaitan operasi &amp; kemudahan.</p>
-      </div>
-      <UButton icon="i-lucide-plus" color="neutral" @click="showAddModal = true">
-        Hantar Aduan Baru
-      </UButton>
+    <div>
+      <h2 class="text-xl font-bold text-gray-900">Terima Aduan</h2>
+      <p class="text-sm text-gray-500">Semak dan proses aduan yang diterima daripada kakitangan dan pengguna.</p>
     </div>
 
-    <!-- Stats cards -->
+    <!-- Stats -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="rounded-xl border border-gray-100 bg-white p-4">
         <p class="text-xs text-gray-500">Jumlah Aduan</p>
         <p class="text-2xl font-bold text-gray-900 mt-1">{{ stats.jumlah }}</p>
       </div>
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-4">
-        <p class="text-xs text-yellow-700">Menunggu</p>
+        <p class="text-xs text-yellow-700">Menunggu Tindakan</p>
         <p class="text-2xl font-bold text-yellow-700 mt-1">{{ stats.menunggu }}</p>
       </div>
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
-        <p class="text-xs text-blue-700">Dalam Proses</p>
+        <p class="text-xs text-blue-700">Sedang Diproses</p>
         <p class="text-2xl font-bold text-blue-700 mt-1">{{ stats.dalam_proses }}</p>
       </div>
       <div class="rounded-xl border border-green-100 bg-green-50 p-4">
@@ -196,7 +160,7 @@ function saveAddAduan() {
             v-for="t in tabs"
             :key="t.value"
             size="xs"
-            :color="tab === t.value ? 'neutral' : 'neutral'"
+            color="neutral"
             :variant="tab === t.value ? 'solid' : 'ghost'"
             @click="tab = t.value"
           >
@@ -206,7 +170,7 @@ function saveAddAduan() {
         <UInput
           v-model="search"
           icon="i-lucide-search"
-          placeholder="Cari aduan..."
+          placeholder="Cari aduan, pengadu, lokasi..."
           class="w-64 ml-auto"
         />
       </div>
@@ -232,13 +196,13 @@ function saveAddAduan() {
           <span class="text-xs text-gray-500">{{ row.original.tarikh }}</span>
         </template>
         <template #actions-cell="{ row }">
-          <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-eye" @click="openDetail(row.original)">
-            Lihat
+          <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-clipboard-pen" @click="openDetail(row.original)">
+            Proses
           </UButton>
         </template>
         <template #empty>
           <div class="text-center py-10 text-gray-500">
-            <UIcon name="i-lucide-message-square-warning" class="w-10 h-10 mx-auto mb-2" />
+            <UIcon name="i-lucide-inbox" class="w-10 h-10 mx-auto mb-2" />
             <p>Tiada aduan dijumpai.</p>
           </div>
         </template>
@@ -246,13 +210,15 @@ function saveAddAduan() {
     </UCard>
 
     <ClientOnly>
-      <!-- Detail / Update Modal -->
       <UModal v-model:open="showDetailModal">
         <template #content>
           <UCard v-if="selectedAduan">
             <template #header>
               <div class="flex items-center justify-between">
-                <h3 class="font-semibold">Butiran Aduan</h3>
+                <div>
+                  <h3 class="font-semibold">Proses Aduan</h3>
+                  <p class="text-xs text-gray-400 mt-0.5">Kemaskini tindakan dan status aduan ini.</p>
+                </div>
                 <UBadge :color="(priorityColour[selectedAduan.keutamaan] ?? 'neutral') as any" variant="soft" size="sm">
                   {{ priorityLabel[selectedAduan.keutamaan] }}
                 </UBadge>
@@ -260,7 +226,6 @@ function saveAddAduan() {
             </template>
 
             <div class="space-y-4">
-              <!-- Aduan info -->
               <div class="p-4 bg-gray-50 rounded-xl space-y-2">
                 <h4 class="font-semibold text-gray-900">{{ selectedAduan.tajuk }}</h4>
                 <div class="grid grid-cols-2 gap-2 text-xs text-gray-500">
@@ -268,7 +233,7 @@ function saveAddAduan() {
                   <div><span class="font-medium text-gray-700">Tarikh:</span> {{ selectedAduan.tarikh }}</div>
                   <div><span class="font-medium text-gray-700">Lokasi:</span> {{ selectedAduan.lokasi }}</div>
                   <div>
-                    <span class="font-medium text-gray-700">Status:</span>
+                    <span class="font-medium text-gray-700">Status semasa:</span>
                     <UBadge :color="(statusColour[selectedAduan.status] ?? 'neutral') as any" variant="soft" size="xs" class="ml-1">
                       {{ statusLabel[selectedAduan.status] }}
                     </UBadge>
@@ -276,24 +241,20 @@ function saveAddAduan() {
                 </div>
               </div>
 
-              <!-- Penerangan -->
               <div>
-                <p class="text-xs font-semibold text-gray-600 mb-1">Penerangan</p>
+                <p class="text-xs font-semibold text-gray-600 mb-1">Penerangan Aduan</p>
                 <p class="text-sm text-gray-700 bg-gray-50 rounded-lg p-3">{{ selectedAduan.penerangan }}</p>
               </div>
 
-              <!-- Tindakan / Kemaskini -->
-              <div>
-                <p class="text-xs font-semibold text-gray-600 mb-1">Tindakan / Maklum Balas</p>
+              <UFormField label="Tindakan Diambil" description="Rekodkan tindakan yang telah atau akan diambil.">
                 <UTextarea
                   v-model="actionText"
                   placeholder="Nyatakan tindakan yang telah atau akan diambil..."
                   :rows="3"
                   class="w-full"
                 />
-              </div>
+              </UFormField>
 
-              <!-- Kemaskini Status -->
               <UFormField label="Kemaskini Status">
                 <USelect
                   v-model="actionStatus"
@@ -312,54 +273,9 @@ function saveAddAduan() {
             <template #footer>
               <div class="flex justify-end gap-2">
                 <UButton color="neutral" variant="ghost" @click="showDetailModal = false">Tutup</UButton>
-                <UButton color="neutral" :loading="saving" @click="saveAction">Simpan Kemaskini</UButton>
-              </div>
-            </template>
-          </UCard>
-        </template>
-      </UModal>
-
-      <!-- Add Aduan Modal -->
-      <UModal v-model:open="showAddModal">
-        <template #content>
-          <UCard>
-            <template #header>
-              <h3 class="font-semibold">Hantar Aduan Baru</h3>
-            </template>
-            <div class="space-y-4">
-              <UFormField label="Tajuk Aduan" required>
-                <UInput v-model="addForm.tajuk" placeholder="Tajuk aduan" class="w-full" />
-              </UFormField>
-              <div class="grid grid-cols-2 gap-4">
-                <UFormField label="Nama Pengadu" required>
-                  <UInput v-model="addForm.pengadu" placeholder="Nama pengadu" class="w-full" />
-                </UFormField>
-                <UFormField label="Keutamaan" required>
-                  <USelect
-                    v-model="addForm.keutamaan"
-                    :items="[
-                      { label: '-- Pilih --', value: '' },
-                      { label: 'Tinggi', value: 'tinggi' },
-                      { label: 'Sederhana', value: 'sederhana' },
-                      { label: 'Rendah', value: 'rendah' },
-                    ]"
-                    value-key="value"
-                    label-key="label"
-                    class="w-full"
-                  />
-                </UFormField>
-              </div>
-              <UFormField label="Penerangan" required>
-                <UTextarea v-model="addForm.penerangan" placeholder="Huraikan aduan dengan terperinci..." :rows="3" class="w-full" />
-              </UFormField>
-              <UFormField label="Lokasi">
-                <UInput v-model="addForm.lokasi" placeholder="Lokasi berkaitan (cth: Makmal B3, Aras 2)" class="w-full" />
-              </UFormField>
-            </div>
-            <template #footer>
-              <div class="flex justify-end gap-2">
-                <UButton color="neutral" variant="ghost" @click="showAddModal = false">Batal</UButton>
-                <UButton color="neutral" @click="saveAddAduan">Hantar</UButton>
+                <UButton color="neutral" icon="i-lucide-check" :loading="saving" @click="saveAction">
+                  Simpan Kemaskini
+                </UButton>
               </div>
             </template>
           </UCard>
