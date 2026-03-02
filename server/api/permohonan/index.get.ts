@@ -1,6 +1,4 @@
-import { and, desc, eq, inArray, like } from 'drizzle-orm'
-import { db } from '../../db'
-import { permohonanLesen, syarikat } from '../../db/schema'
+import { permohonanList, getSyarikat } from '../../data/dummy'
 import { requireAuth } from '../../utils/rbac'
 
 export default defineEventHandler(async (event) => {
@@ -12,42 +10,40 @@ export default defineEventHandler(async (event) => {
   const page = Number(query.page ?? 1)
   const limit = Number(query.limit ?? 20)
   const offset = (page - 1) * limit
-  const search = query.search as string | undefined
 
-  const conditions = []
+  let filtered = [...permohonanList]
 
-  // Role-based filtering
   if (userRole === 'PL') {
-    conditions.push(eq(permohonanLesen.createdBy, userId))
+    filtered = filtered.filter(p => p.createdBy === userId)
   } else if (userRole === 'PS') {
-    conditions.push(inArray(permohonanLesen.status, ['dikemukakan', 'semakan_PS']))
+    filtered = filtered.filter(p => ['dikemukakan', 'semakan_PS'].includes(p.status))
   } else if (userRole === 'KU') {
-    conditions.push(inArray(permohonanLesen.status, ['lulus_PS', 'semakan_KU']))
+    filtered = filtered.filter(p => ['lulus_PS', 'semakan_KU'].includes(p.status))
   }
-  // P, KP, ADMIN see all
 
   if (query.status) {
-    conditions.push(eq(permohonanLesen.status, query.status as string))
+    filtered = filtered.filter(p => p.status === query.status)
   }
 
-  const rows = await db
-    .select({
-      id: permohonanLesen.id,
-      noRujukan: permohonanLesen.noRujukan,
-      jenisPermohonan: permohonanLesen.jenisPermohonan,
-      status: permohonanLesen.status,
-      createdAt: permohonanLesen.createdAt,
-      updatedAt: permohonanLesen.updatedAt,
-      submittedAt: permohonanLesen.submittedAt,
-      namaSyarikat: syarikat.namaSyarikat,
-      noDaftar: syarikat.noDaftar
-    })
-    .from(permohonanLesen)
-    .leftJoin(syarikat, eq(permohonanLesen.syarikatId, syarikat.id))
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(permohonanLesen.updatedAt))
-    .limit(limit)
-    .offset(offset)
+  const sorted = filtered.sort((a, b) =>
+    (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0)
+  )
 
-  return { data: rows, page, limit }
+  const paged = sorted.slice(offset, offset + limit)
+  const data = paged.map(p => {
+    const s = getSyarikat(p.syarikatId)
+    return {
+      id: p.id,
+      noRujukan: p.noRujukan,
+      jenisPermohonan: p.jenisPermohonan,
+      status: p.status,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      submittedAt: p.submittedAt,
+      namaSyarikat: s?.namaSyarikat ?? null,
+      noDaftar: s?.noDaftar ?? null,
+    }
+  })
+
+  return { data, page, limit }
 })

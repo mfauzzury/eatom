@@ -52,6 +52,28 @@ const columns = [
   { accessorKey: 'updatedAt', header: 'Kemaskini' },
   { id: 'actions', header: '' }
 ]
+
+const claimLoading = ref<number | null>(null)
+
+async function claimRow(id: number) {
+  claimLoading.value = id
+  try {
+    const res = await $fetch('/api/permohonan/action', { method: 'POST', body: { id, action: 'claim' } })
+    if (res?.ok) {
+      // update mock state
+      const { updatePermohonan } = useMockData()
+      updatePermohonan(id, res.data)
+      // small toast
+      useToast().add({ title: 'Berjaya', description: 'Tugasan telah dituntut.', color: 'success' })
+    } else {
+      useToast().add({ title: 'Ralat', description: 'Tindakan gagal pada pelayan.', color: 'error' })
+    }
+  } catch (err) {
+    useToast().add({ title: 'Ralat', description: String(err), color: 'error' })
+  } finally {
+    claimLoading.value = null
+  }
+}
 </script>
 
 <template>
@@ -129,6 +151,26 @@ const columns = [
         </template>
         <template #actions-cell="{ row }">
           <div class="flex gap-1">
+            <UButton
+              v-if="row.original.status === 'dikemukakan' && hasRole('PS', 'ADMIN')"
+              icon="i-lucide-clipboard-check"
+              color="warning"
+              size="xs"
+              variant="ghost"
+              :loading="claimLoading === row.original.id"
+              @click="() => claimRow(row.original.id)"
+              label="Tuntut"
+            />
+            <UButton
+              v-if="row.original.status === 'lulus_PS' && hasRole('KU', 'ADMIN')"
+              icon="i-lucide-clipboard-check"
+              color="warning"
+              size="xs"
+              variant="ghost"
+              :loading="claimLoading === row.original.id"
+              @click="() => claimRow(row.original.id)"
+              label="Tuntut"
+            />
             <UButton
               v-if="row.original.status === 'draf' && hasRole('PL', 'ADMIN')"
               :to="`/perlesenan/permohonan-lesen/${row.original.id}/sunting`"

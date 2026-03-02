@@ -1,32 +1,17 @@
-import { eq } from 'drizzle-orm'
-import { db } from '../../../../db'
-import { dokumenPermohonan, permohonanLesen, user } from '../../../../db/schema'
-import { requireAuth } from '../../../../utils/rbac'
+import { dokumenList, getUser } from '../../../../data/dummy'
 
 export default defineEventHandler(async (event) => {
-  await requireAuth(event)
   const id = Number(getRouterParam(event, 'id'))
 
-  const existing = await db.query.permohonanLesen.findFirst({
-    where: (p, { eq }) => eq(p.id, id)
-  })
-  if (!existing) {
-    throw createError({ statusCode: 404, statusMessage: 'Permohonan tidak dijumpai' })
-  }
-
-  const docs = await db
-    .select({
-      id: dokumenPermohonan.id,
-      namaFail: dokumenPermohonan.namaFail,
-      jenisDoc: dokumenPermohonan.jenisDoc,
-      saizFail: dokumenPermohonan.saizFail,
-      mimeType: dokumenPermohonan.mimeType,
-      createdAt: dokumenPermohonan.createdAt,
-      uploadedByName: user.name
-    })
-    .from(dokumenPermohonan)
-    .leftJoin(user, eq(dokumenPermohonan.uploadedBy, user.id))
-    .where(eq(dokumenPermohonan.permohonanId, id))
-
-  return docs
+  return dokumenList
+    .filter(d => d.permohonanId === id)
+    .map(d => ({
+      id: d.id,
+      namaFail: d.namaFail,
+      jenisDoc: d.jenisDoc,
+      saizFail: d.saizFail,
+      mimeType: d.mimeType,
+      createdAt: d.createdAt,
+      uploadedByName: getUser(d.uploadedBy)?.name ?? null,
+    }))
 })

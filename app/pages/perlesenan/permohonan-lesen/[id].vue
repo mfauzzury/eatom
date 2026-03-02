@@ -249,36 +249,65 @@ function openAction(type: 'lulus' | 'tolak') {
   showActionModal.value = true
 }
 
-function changeStatus(newStatus: string, successMsg: string) {
+async function changeStatus(newStatus: string, successMsg: string) {
+  if (!permohonan.value) return
   actionLoading.value = true
-  setTimeout(() => {
-    const updates: Record<string, string> = { status: newStatus }
-    if (catatan.value) {
-      if (['semakan_PS', 'lulus_PS'].includes(newStatus) || (newStatus === 'ditolak' && canActPS.value)) {
-        updates.catatanPS = catatan.value
-      } else {
-        updates.catatanKU = catatan.value
-      }
+  try {
+    let action = ''
+    if (newStatus === 'lulus_PS') action = 'approve_ps'
+    else if (newStatus === 'ditolak' && canActPS.value) action = 'reject_ps'
+    else if (newStatus === 'diluluskan') action = 'approve_ku'
+    else if (newStatus === 'ditolak' && canActKU.value) action = 'reject_ku'
+
+    if (!action) {
+      // fallback to local mock update
+      updatePermohonan(Number(route.params.id), { status: newStatus })
+      toast.add({ title: 'Berjaya', description: successMsg, color: 'success' })
+      showActionModal.value = false
+      return
     }
-    if (newStatus === 'diluluskan') updates.approvedAt = new Date().toISOString().split('T')[0]
-    if (newStatus === 'dikemukakan') updates.submittedAt = new Date().toISOString().split('T')[0]
-    updatePermohonan(Number(route.params.id), updates)
-    toast.add({ title: 'Berjaya', description: successMsg, color: 'success' })
+
+    const body: Record<string, unknown> = { id: permohonan.value.id, action }
+    if (catatan.value) body.comment = catatan.value
+    const res = await $fetch('/api/permohonan/action', { method: 'POST', body })
+    if (res?.ok) {
+      updatePermohonan(Number(route.params.id), res.data)
+      toast.add({ title: 'Berjaya', description: successMsg, color: 'success' })
+    } else {
+      toast.add({ title: 'Ralat', description: 'Tindakan gagal pada pelayan.', color: 'error' })
+    }
+  } catch (err) {
+    toast.add({ title: 'Ralat', description: String(err), color: 'error' })
+  } finally {
     showActionModal.value = false
     actionLoading.value = false
-  }, 300)
+  }
 }
 
 function submitDraf() {
   if (!permohonan.value) return
-  changeStatus('dikemukakan', 'Permohonan telah dikemukakan untuk semakan.')
+  // submitting existing draft is not yet supported by backend action endpoint — update mock for prototype
+  updatePermohonan(Number(route.params.id), { status: 'dikemukakan', submittedAt: new Date().toISOString().split('T')[0] })
+  toast.add({ title: 'Berjaya', description: 'Permohonan telah dikemukakan untuk semakan.', color: 'success' })
 }
 
-function claimSemakan() {
+async function claimSemakan() {
   if (!permohonan.value) return
-  const status = canClaimPS.value ? 'semakan_PS' : 'semakan_KU'
-  const msg = canClaimPS.value ? 'Semakan PS dimulakan.' : 'Semakan KU dimulakan.'
-  changeStatus(status, msg)
+  actionLoading.value = true
+  try {
+    const res = await $fetch('/api/permohonan/action', { method: 'POST', body: { id: permohonan.value.id, action: 'claim' } })
+    if (res?.ok) {
+      updatePermohonan(Number(route.params.id), res.data)
+      const msg = canClaimPS.value ? 'Semakan PS dimulakan.' : 'Semakan KU dimulakan.'
+      toast.add({ title: 'Berjaya', description: msg, color: 'success' })
+    } else {
+      toast.add({ title: 'Ralat', description: 'Tindakan gagal pada pelayan.', color: 'error' })
+    }
+  } catch (err) {
+    toast.add({ title: 'Ralat', description: String(err), color: 'error' })
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 function confirmAction() {

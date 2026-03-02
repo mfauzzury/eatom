@@ -1,44 +1,37 @@
-import { betterAuth } from 'better-auth'
-import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { db } from '../db'
-import * as schema from '../db/schema'
+// Mock auth for Vercel deployment — no database
 
-export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL ?? process.env.NUXT_PUBLIC_APP_URL ?? 'http://localhost:3001',
-  database: drizzleAdapter(db, {
-    provider: 'sqlite',
-    schema: {
-      user: schema.user,
-      session: schema.session,
-      account: schema.account,
-      verification: schema.verification
-    }
-  }),
-  emailAndPassword: {
-    enabled: true
-  },
-  user: {
-    additionalFields: {
-      role: {
-        type: 'string',
-        required: true,
-        defaultValue: 'AWAM',
-        input: false
+const DEMO_USER = {
+  id: 'user-2',
+  name: 'Siti Semakan',
+  email: 'ps@eatom.gov.my',
+  emailVerified: true,
+  image: null,
+  role: 'PS',
+  bahagian: 'BPP',
+  createdAt: new Date('2025-01-01'),
+  updatedAt: new Date('2025-01-01'),
+}
+
+export const auth = {
+  api: {
+    getSession: async (_opts: { headers: Headers }) => ({
+      user: DEMO_USER,
+      session: {
+        id: 'demo-session',
+        token: 'demo-token',
+        userId: DEMO_USER.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
-      bahagian: {
-        type: 'string',
-        required: false,
-        input: false
-      }
-    }
+    }),
   },
-  session: {
-    expiresIn: 60 * 60 * 24 * 7 // 7 days
+  handler: async (_req: Request) => {
+    return new Response(JSON.stringify({ user: DEMO_USER }), {
+      headers: { 'Content-Type': 'application/json' },
+    })
   },
-  trustedOrigins: [
-    process.env.NUXT_PUBLIC_APP_URL ?? 'http://localhost:3001'
-  ]
-})
+}
 
-export type Session = typeof auth.$Infer.Session
-export type User = typeof auth.$Infer.Session.user
+export type Session = Awaited<ReturnType<typeof auth.api.getSession>>
+export type User = typeof DEMO_USER

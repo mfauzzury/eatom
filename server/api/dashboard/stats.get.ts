@@ -1,6 +1,4 @@
-import { count, eq, sql, desc } from 'drizzle-orm'
-import { db } from '../../db'
-import { permohonanLesen, syarikat, user } from '../../db/schema'
+import { permohonanList, syarikatList, users, getSyarikat } from '../../data/dummy'
 import { requireAuth } from '../../utils/rbac'
 
 export default defineEventHandler(async (event) => {
@@ -8,76 +6,40 @@ export default defineEventHandler(async (event) => {
   const userRole = (session.user as { role?: string }).role
   const userId = session.user.id
 
-  // Status breakdown
-  const allStatuses = await db
-    .select({ status: permohonanLesen.status, count: count() })
-    .from(permohonanLesen)
-    .groupBy(permohonanLesen.status)
+  const statusMap: Record<string, number> = {}
+  const jenisMap: Record<string, number> = {}
+  const kategoriMap: Record<string, number> = {}
 
-  const statusMap = Object.fromEntries(allStatuses.map(s => [s.status, s.count]))
-  const jumlahPermohonan = Object.values(statusMap).reduce((a, b) => a + b, 0)
+  for (const p of permohonanList) {
+    statusMap[p.status] = (statusMap[p.status] ?? 0) + 1
+    jenisMap[p.jenisPermohonan] = (jenisMap[p.jenisPermohonan] ?? 0) + 1
+    if (p.kategoriLesen) kategoriMap[p.kategoriLesen] = (kategoriMap[p.kategoriLesen] ?? 0) + 1
+  }
 
-  // Jenis breakdown
-  const allJenis = await db
-    .select({ jenis: permohonanLesen.jenisPermohonan, count: count() })
-    .from(permohonanLesen)
-    .groupBy(permohonanLesen.jenisPermohonan)
+  const jumlahPermohonan = permohonanList.length
 
-  const jenisMap = Object.fromEntries(allJenis.map(j => [j.jenis, j.count]))
-
-  // Kategori breakdown
-  const allKategori = await db
-    .select({ kategori: permohonanLesen.kategoriLesen, count: count() })
-    .from(permohonanLesen)
-    .groupBy(permohonanLesen.kategoriLesen)
-
-  const kategoriMap = Object.fromEntries(
-    allKategori
-      .filter(k => k.kategori)
-      .map(k => [k.kategori!, k.count])
-  )
-
-  // Tugasan saya
   let tugasanSaya = 0
   if (userRole === 'PS') {
     tugasanSaya = (statusMap['dikemukakan'] ?? 0) + (statusMap['semakan_PS'] ?? 0)
   } else if (userRole === 'KU') {
     tugasanSaya = (statusMap['lulus_PS'] ?? 0) + (statusMap['semakan_KU'] ?? 0)
   } else if (userRole === 'PL') {
-    const [res] = await db
-      .select({ count: count() })
-      .from(permohonanLesen)
-      .where(eq(permohonanLesen.createdBy, userId))
-    tugasanSaya = res?.count ?? 0
+    tugasanSaya = permohonanList.filter(p => p.createdBy === userId).length
   } else if (['P', 'KP', 'ADMIN'].includes(userRole ?? '')) {
     tugasanSaya = jumlahPermohonan
   }
 
-  // Recent permohonan (latest 5)
-  const recentPermohonan = await db
-    .select({
-      id: permohonanLesen.id,
-      noRujukan: permohonanLesen.noRujukan,
-      namaSyarikat: syarikat.namaSyarikat,
-      jenisPermohonan: permohonanLesen.jenisPermohonan,
-      status: permohonanLesen.status,
-      updatedAt: permohonanLesen.updatedAt
-    })
-    .from(permohonanLesen)
-    .leftJoin(syarikat, eq(permohonanLesen.syarikatId, syarikat.id))
-    .orderBy(desc(permohonanLesen.updatedAt))
-    .limit(5)
-
-  // Count syarikat aktif
-  const [syarikatCount] = await db
-    .select({ count: count() })
-    .from(syarikat)
-    .where(eq(syarikat.status, 'aktif'))
-
-  // Count users
-  const [userCount] = await db
-    .select({ count: count() })
-    .from(user)
+  const sorted = [...permohonanList].sort((a, b) =>
+    (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0)
+  )
+  const recentPermohonan = sorted.slice(0, 5).map(p => ({
+    id: p.id,
+    noRujukan: p.noRujukan,
+    namaSyarikat: getSyarikat(p.syarikatId)?.namaSyarikat ?? '',
+    jenisPermohonan: p.jenisPermohonan,
+    status: p.status,
+    updatedAt: p.updatedAt,
+  }))
 
   return {
     tugasanSaya,
@@ -93,7 +55,7 @@ export default defineEventHandler(async (event) => {
     jenisMap,
     kategoriMap,
     recentPermohonan,
-    jumlahSyarikat: syarikatCount?.count ?? 0,
-    jumlahPengguna: userCount?.count ?? 0
+    jumlahSyarikat: syarikatList.filter(s => s.status === 'aktif').length,
+    jumlahPengguna: users.length,
   }
 })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ title: 'Dashboard eATOM' })
 
-const { user, role, hasRole } = useAuthUser()
+const { user, role, hasRole, isInternal } = useAuthUser()
 const { stats } = useMockData()
 
 const roleLabels: Record<string, string> = {
@@ -130,6 +130,31 @@ const activities = ref([
   { action: 'Permohonan PL/2025/0001 diluluskan', user: 'Kamal Ketua', time: '5 hari lepas', icon: 'i-lucide-badge-check' },
   { action: 'Permohonan PL/2025/0011 ditolak', user: 'Siti Semakan', time: '20 hari lepas', icon: 'i-lucide-x' }
 ])
+
+// Recent audit logs (for internal staff only)
+const recentAuditLogs = ref([
+  { masa: '2026-02-24 11:20:39', pengguna: 'Sistem',           tindakan: 'SYNC',    perihalan: 'Sinkronisasi data pekerja sinaran berjaya',              severity: 'info' },
+  { masa: '2026-02-24 11:00:22', pengguna: 'Syarikat Atom PL', tindakan: 'CREATE',  perihalan: 'Permohonan pembaharuan PL/2025/0008 dikemukakan',        severity: 'info' },
+  { masa: '2026-02-24 10:45:00', pengguna: 'Kamal Ketua',      tindakan: 'EXPORT',  perihalan: 'Senarai permohonan lulus dieksport ke PDF',              severity: 'info' },
+  { masa: '2026-02-24 10:30:45', pengguna: 'Ahmad Admin',      tindakan: 'DELETE',  perihalan: 'Draf permohonan ID 13 dipadam',                          severity: 'warning' },
+  { masa: '2026-02-24 10:05:33', pengguna: 'Sistem',           tindakan: 'ERROR',   perihalan: 'Ralat sambungan ke perkhidmatan e-mel luaran',            severity: 'error' },
+  { masa: '2026-02-24 09:50:20', pengguna: 'unknown',          tindakan: 'ERROR',   perihalan: 'Cubaan log masuk gagal — kata laluan salah (3x)',         severity: 'error' },
+])
+
+const auditActionColour: Record<string, string> = {
+  LOGIN: 'text-blue-700 bg-blue-50', CREATE: 'text-green-700 bg-green-50',
+  UPDATE: 'text-yellow-700 bg-yellow-50', DELETE: 'text-red-700 bg-red-50',
+  APPROVE: 'text-emerald-700 bg-emerald-50', EXPORT: 'text-orange-700 bg-orange-50',
+  ERROR: 'text-red-700 bg-red-50', SYNC: 'text-teal-700 bg-teal-50',
+}
+
+const auditSeverityIcon: Record<string, string> = {
+  info: 'i-lucide-info', warning: 'i-lucide-triangle-alert', error: 'i-lucide-x-circle'
+}
+
+const auditSeverityColour: Record<string, string> = {
+  info: 'text-blue-500', warning: 'text-yellow-500', error: 'text-red-500'
+}
 
 // Module links
 const moduleLinks = [
@@ -370,5 +395,36 @@ const moduleLinks = [
         </div>
       </div>
     </div>
+    <!-- Audit Trail (staf dalaman sahaja) -->
+    <UCard v-if="isInternal" :ui="{ body: 'p-0' }">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Log Audit Terkini</p>
+          <UButton to="/audit-trail" variant="link" size="xs" color="neutral" label="Lihat semua" trailing-icon="i-lucide-arrow-right" />
+        </div>
+      </template>
+      <div class="divide-y divide-gray-50">
+        <div
+          v-for="(log, i) in recentAuditLogs"
+          :key="i"
+          class="flex items-center gap-3 px-4 py-2.5"
+        >
+          <UIcon
+            :name="auditSeverityIcon[log.severity] ?? 'i-lucide-info'"
+            class="w-4 h-4 shrink-0"
+            :class="auditSeverityColour[log.severity]"
+          />
+          <span class="font-mono text-xs text-gray-400 w-36 shrink-0">{{ log.masa.split(' ')[1] }}</span>
+          <span
+            class="px-1.5 py-0.5 rounded text-xs font-bold font-mono shrink-0"
+            :class="auditActionColour[log.tindakan] ?? 'text-gray-600 bg-gray-50'"
+          >
+            {{ log.tindakan }}
+          </span>
+          <span class="text-xs text-gray-500 truncate">{{ log.perihalan }}</span>
+          <span class="text-xs text-gray-400 ml-auto shrink-0">{{ log.pengguna }}</span>
+        </div>
+      </div>
+    </UCard>
   </div>
 </template>
